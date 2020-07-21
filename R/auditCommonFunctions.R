@@ -784,7 +784,8 @@
                                            "stratification",
                                            "maximumUncertaintyPercentage",
                                            "reduceUncertainty",
-                                           "performanceMateriality"))
+                                           "performanceMateriality",
+                                           "sampleSizeIncrease"))
 
     jaspResults[["planningContainer"]] <- analysisContainer
 
@@ -1042,14 +1043,28 @@
 .auditReadyForAnalysis <- function(options, planningOptions, stage){
 
   if(stage == "planning"){
-    if(options[["materiality"]] == "materialityAbsolute" && !options[["reduceUncertainty"]]){
+    if(!(options[["performanceMateriality"]] || options[["reduceUncertainty"]])){
+      ready <- FALSE
+    }
+    if(options[["performanceMateriality"]] && !options[["reduceUncertainty"]] && options[["materiality"]] == "materialityAbsolute"){
       ready <- options[["materialityValue"]] != 0 && planningOptions[["populationSize"]] != 0 && 
-                planningOptions[["populationValue"]] != 0 && planningOptions[["populationValue"]] != 0.01
-    } else if(options[["materiality"]] == "materialityRelative" && !options[["reduceUncertainty"]]){
+                planningOptions[["populationValue"]] != 0 && planningOptions[["populationValue"]] != 0.01 
+    }
+    if(options[["performanceMateriality"]] && !options[["reduceUncertainty"]] && options[["materiality"]] == "materialityRelative"){
       ready <- options[["materialityPercentage"]] != 0 && planningOptions[["populationSize"]] != 0
-    } else if(options[["reduceUncertainty"]]){
+    }
+    if(options[["reduceUncertainty"]] && !options[["performanceMateriality"]]){
       ready <- options[["maximumUncertaintyPercentage"]] != 0 && planningOptions[["populationSize"]] != 0 && 
                 planningOptions[["populationValue"]] != 0
+    }
+    if(options[["reduceUncertainty"]] && options[["performanceMateriality"]]){
+      if(options[["materiality"]] == "materialityAbsolute"){
+        ready <- options[["materialityValue"]] != 0 && planningOptions[["populationSize"]] != 0 && 
+                planningOptions[["populationValue"]] != 0 && planningOptions[["populationValue"]] != 0.01 &&
+                options[["maximumUncertaintyPercentage"]] != 0
+      } else {
+        ready <- options[["materialityPercentage"]] != 0 && planningOptions[["populationSize"]] != 0 && options[["maximumUncertaintyPercentage"]] != 0
+      }
     }
   }
 
@@ -1533,53 +1548,54 @@
                       confidence = adjustedConfidence, 
                       expectedError = planningOptions[["expectedErrors"]], 
                       likelihood = planningOptions[["likelihood"]], 
-                      N = planningOptions[["populationSize"]])
+                      N = planningOptions[["populationSize"]],
+                      increase = options[["sampleSizeIncrease"]])
                     })
 
     } else if(type == "bayesian"){
 
-      if(options[["reduceUncertainty"]] && !options[["performanceMateriality"]] && options[["stratification"]] == "stratificationTopAndBottom"){
+      if(options[["reduceUncertainty"]] && 
+          !options[["performanceMateriality"]] && 
+          options[["stratification"]] == "stratificationTopAndBottom"){
 
-          prior <- jfa::auditPrior(materiality = planningOptions[["materiality"]], 
-                confidence = planningOptions[["confidence"]],
-                expectedError = planningOptions[["expectedErrors"]], 
-                likelihood = planningOptions[["likelihood"]], 
-                N = planningOptions[["populationSize"]], 
-                ir = inherentRisk, 
-                cr = controlRisk)
+        for(n in seq(5, nrow(dataset), by = options[["sampleSizeIncrease"]])){
+          
 
-        for(n in seq(5, 5000, by = 1)){
-
-            interval <- ceiling(planningOptions[["populationValue"]] / n) 
-            totalValue <- sum(dataset[, .v(options[["monetaryVariable"]])])
+            interval <- floor(planningOptions[["populationValue"]] / n) 
             topStratum <- subset(dataset, dataset[, .v(options[["monetaryVariable"]])] > interval)
             bottomStratum <- subset(dataset, dataset[, .v(options[["monetaryVariable"]])] <= interval)
 
             m_seen <- sum(topStratum[, .v(options[["monetaryVariable"]])]) 
-            # Adjust
-            # bottomStratumSample <- bottomStratum[sample(1:nrow(bottomStratum), size = (n - nrow(topStratum)), replace = TRUE, prob = bottomStratum[, .v(options[["monetaryVariable"]])]), ]
-            # m_seen <- m_seen + sum(bottomStratumSample[, .v(options[["monetaryVariable"]])])
 
-            # m_unseen <- totalValue - m_seen
+            intervalStartingPoint <- sample(1:(interval -1), size = 1)
+            indexEuros <- intervalStartingPoint + 0:(n-1) * interval
+            mat <- rep(as.numeric(dataset[, .v(options[["recordNumberVariable"]])]), times = ceiling(dataset[, .v(options[["monetaryVariable"]])]))
+            index <- mat[indexEuros]
+            sample <- dataset[index, ]
+            sample <- unique(sample)
 
-            sample <- jfa::sampling(dataset, sampleSize = n, bookValue = .v(options[["monetaryVariable"]]),
-                                    units = "mus", algorithm = "interval", intervalStartingPoint = 1, seed = 1)$sample
             bottomStratumSample <- sample[which(sample[, .v(options[["monetaryVariable"]])] <= interval), ]
 
             m_seen <- m_seen + sum(bottomStratumSample[, .v(options[["monetaryVariable"]])])
+            m_seen_percentage <- m_seen / planningOptions[["populationValue"]]
 
-            m_unseen <- totalValue - m_seen
+            m_unseen <- planningOptions[["populationValue"]] - m_seen
 
-            possibleTaints <- seq(0, (n - nrow(topStratum)), by = 0.01)
-            a <- prior$aPrior + possibleTaints
-            b <- prior$bPrior + n - possibleTaints
-            v95 <- qbeta(options[["confidence"]], a, b) * m_unseen
-            v <- ((a - 1) / (a + b - 2)) * m_unseen
-            inaccuracy <- v95 - v
-            relativeInaccuracy <- inaccuracy / sum(dataset[, .v(options[["monetaryVariable"]])])
-            requiredAccuracy <- options[["maximumUncertaintyPercentage"]]
+            if(options[["expectedErrors"]] == "expectedAllPossible"){
+              a <- 1 + 0:n
+              b <- 1 + n - 0:n
+            } else {
+              a <- 1 + 0:ceiling(n * (planningOptions[["expectedErrors"]] * 2))
+              b <- 1 + n - 0:ceiling(n * (planningOptions[["expectedErrors"]] * 2))
+            }
+
+            v95 <- qbeta(options[["confidence"]], a, b)
+            v <- ((a - 1) / (a + b - 2))
+            relativeInaccuracy <- v95 - v
+            correctedInaccuracy <- options[["maximumUncertaintyPercentage"]] * (1 / (1 - m_seen_percentage))
+            diff <- relativeInaccuracy - correctedInaccuracy
             
-            if(all(relativeInaccuracy <= requiredAccuracy)){
+            if(all(diff <= 0)){
               break
             }
           }
@@ -1590,8 +1606,8 @@
                           N = planningOptions[["populationSize"]], 
                           expectedSampleError = 0,
                           likelihood = "binomial",
-                          prior = list(aPrior = prior$aPrior, 
-                                      bPrior = prior$bPrior, 
+                          prior = list(aPrior = 1, 
+                                      bPrior = 1, 
                                       nPrior = 0, 
                                       kPrior = 0))
 
@@ -1599,29 +1615,34 @@
 
       result <- try({
 
-        prior <- jfa::auditPrior(materiality = planningOptions[["materiality"]], 
-                                confidence = planningOptions[["confidence"]],
-                                expectedError = planningOptions[["expectedErrors"]], 
-                                likelihood = planningOptions[["likelihood"]], 
-                                N = planningOptions[["populationSize"]], 
-                                ir = inherentRisk, 
-                                cr = controlRisk)
+        if(options[["performanceMateriality"]]){
+          prior <- jfa::auditPrior(materiality = planningOptions[["materiality"]], 
+                                  confidence = planningOptions[["confidence"]],
+                                  expectedError = planningOptions[["expectedErrors"]], 
+                                  likelihood = planningOptions[["likelihood"]], 
+                                  N = planningOptions[["populationSize"]], 
+                                  ir = inherentRisk, 
+                                  cr = controlRisk)
+        } else {
+          prior <- TRUE
+        }
 
         minPrecision <- NULL
         if(options[["reduceUncertainty"]])
           minPrecision <- options[["maximumUncertaintyPercentage"]]
 
+        performanceMateriality <- NULL
         if(options[["performanceMateriality"]]){
           performanceMateriality <- planningOptions[["materiality"]]
-        } else {
-          performanceMateriality <- 1
         }
 
         jfa::planning(materiality = performanceMateriality, 
                       confidence = planningOptions[["confidence"]], 
                       expectedError = planningOptions[["expectedErrors"]], 
                       N = planningOptions[["populationSize"]], 
-                      prior = prior, minPrecision = minPrecision)
+                      prior = prior, 
+                      minPrecision = minPrecision,
+                      increase = options[["sampleSizeIncrease"]])
 
                     })
 
@@ -1698,11 +1719,21 @@
                                     "evaluationChecked",
                                     "planningModel",
                                     "expectedEvidenceRatio",
-                                    "expectedBayesFactor"))
+                                    "expectedBayesFactor",
+                                    "expectedErrors",
+                                    "reduceUncertainty",
+                                    "performanceMateriality"))
 
-  summaryTable$addColumnInfo(name = 'materiality',          
-                             title = gettext("Materiality"),          
-                             type = 'string')
+  if(options[["performanceMateriality"]])
+    summaryTable$addColumnInfo(name = 'materiality',          
+                              title = gettext("Materiality"),          
+                              type = 'string')
+
+  if(options[["reduceUncertainty"]])
+    summaryTable$addColumnInfo(name = 'precision',          
+                              title = gettext("Minimum precision"),          
+                              type = 'string')
+
   summaryTable$addColumnInfo(name = 'IR',                   
                              title = gettext("Inherent risk"),        
                              type = 'string')
@@ -1783,12 +1814,35 @@
 
     summaryTable$addFootnote(message)
 
-    row <- data.frame(materiality = planningOptions[["materialityLabel"]], 
+    if(options[["performanceMateriality"]] && !options[["reduceUncertainty"]]){
+          row <- data.frame(materiality = planningOptions[["materialityLabel"]], 
                       IR = paste0(round(inherentRisk * 100, 2), "%"), 
                       CR = paste0(round(controlRisk * 100, 2), "%"), 
                       DR = paste0(round(detectionRisk * 100, 2), "%"), 
                       k = ".", 
                       n = ".")
+    } else if(!options[["performanceMateriality"]] && options[["reduceUncertainty"]]){
+      row <- data.frame(precision = paste0(round(options[["maximumUncertaintyPercentage"]] * 100, 2), "%"), 
+                        IR = paste0(round(inherentRisk * 100, 2), "%"), 
+                        CR = paste0(round(controlRisk * 100, 2), "%"), 
+                        DR = paste0(round(detectionRisk * 100, 2), "%"), 
+                        k = ".", 
+                        n = ".")
+    } else if(options[["performanceMateriality"]] && options[["reduceUncertainty"]]){
+      row <- data.frame(materiality = planningOptions[["materialityLabel"]], 
+                        precision = paste0(round(options[["maximumUncertaintyPercentage"]] * 100, 2), "%"),
+                        IR = paste0(round(inherentRisk * 100, 2), "%"), 
+                        CR = paste0(round(controlRisk * 100, 2), "%"), 
+                        DR = paste0(round(detectionRisk * 100, 2), "%"), 
+                        k = ".", 
+                        n = ".")      
+    } else if(!options[["performanceMateriality"]] && !options[["reduceUncertainty"]]){
+      row <- data.frame(IR = paste0(round(inherentRisk * 100, 2), "%"), 
+                  CR = paste0(round(controlRisk * 100, 2), "%"), 
+                  DR = paste0(round(detectionRisk * 100, 2), "%"), 
+                  k = ".", 
+                  n = ".")    
+    }
 
     if(type == "bayesian" && options[["expectedEvidenceRatio"]])
       row <- cbind(row, expectedEvidenceRatio = ".")
@@ -1847,20 +1901,44 @@
 
   summaryTable$addFootnote(message)
 
-  k <- base::switch(options[["expectedErrors"]], 
-                    "expectedRelative" = planningState[["expectedSampleError"]], 
-                    "expectedAbsolute" = paste(
-                                          planningOptions[["valuta"]], 
-                                          options[["expectedNumber"]]))
-  
   n <- planningState[["sampleSize"]]
 
-  row <- data.frame(materiality = planningOptions[["materialityLabel"]], 
+  k <- base::switch(options[["expectedErrors"]], 
+                    "expectedRelative" = planningState[["expectedSampleError"]], 
+                    "expectedAbsolute" = options[["expectedNumber"]],
+                    "expectedAllPossible" = paste0("0 - ", n))
+  if(options[["performanceMateriality"]] && options[["materiality"]] == "materialityValue")
+    k <- paste(planningOptions[["valuta"]], k)
+
+  if(options[["performanceMateriality"]] && !options[["reduceUncertainty"]]){
+        row <- data.frame(materiality = planningOptions[["materialityLabel"]], 
                     IR = paste0(round(inherentRisk * 100, 2), "%"), 
                     CR = paste0(round(controlRisk * 100, 2), "%"), 
                     DR = paste0(round(detectionRisk * 100, 2), "%"), 
                     k = k, 
                     n = n)
+  } else if(!options[["performanceMateriality"]] && options[["reduceUncertainty"]]){
+    row <- data.frame(precision = paste0(round(options[["maximumUncertaintyPercentage"]] * 100, 2), "%"), 
+                      IR = paste0(round(inherentRisk * 100, 2), "%"), 
+                      CR = paste0(round(controlRisk * 100, 2), "%"), 
+                      DR = paste0(round(detectionRisk * 100, 2), "%"), 
+                      k = k, 
+                      n = n)
+  } else if(options[["performanceMateriality"]] && options[["reduceUncertainty"]]){
+    row <- data.frame(materiality = planningOptions[["materialityLabel"]], 
+                      precision = paste0(round(options[["maximumUncertaintyPercentage"]] * 100, 2), "%"),
+                      IR = paste0(round(inherentRisk * 100, 2), "%"), 
+                      CR = paste0(round(controlRisk * 100, 2), "%"), 
+                      DR = paste0(round(detectionRisk * 100, 2), "%"), 
+                      k = k, 
+                      n = n)      
+  } else if(!options[["performanceMateriality"]] && !options[["reduceUncertainty"]]){
+    row <- data.frame(IR = paste0(round(inherentRisk * 100, 2), "%"), 
+                CR = paste0(round(controlRisk * 100, 2), "%"), 
+                DR = paste0(round(detectionRisk * 100, 2), "%"), 
+                k = k, 
+                n = n)    
+  }
 
   if(type == "bayesian" && 
       (options[["expectedEvidenceRatio"]] || options[["expectedBayesFactor"]])){
@@ -1950,7 +2028,8 @@
                           confidence = adjustedConfidence, 
                           expectedError = planningOptions[["expectedErrors"]], 
                           likelihood = "binomial", 
-                          N = planningOptions[["populationSize"]])
+                          N = planningOptions[["populationSize"]],
+                          increase = options[["sampleSizeIncrease"]])
 
       progressbarTick() 
 
@@ -1958,7 +2037,8 @@
                           confidence = adjustedConfidence, 
                           expectedError = planningOptions[["expectedErrors"]], 
                           likelihood = "poisson", 
-                          N = planningOptions[["populationSize"]])
+                          N = planningOptions[["populationSize"]],
+                          increase = options[["sampleSizeIncrease"]])
 
       progressbarTick()      
 
@@ -1966,7 +2046,8 @@
                           confidence = adjustedConfidence, 
                           expectedError = planningOptions[["expectedErrors"]], 
                           likelihood = "hypergeometric", 
-                          N = planningOptions[["populationSize"]])
+                          N = planningOptions[["populationSize"]],
+                          increase = options[["sampleSizeIncrease"]])
 
       progressbarTick()
       
@@ -2001,7 +2082,8 @@
                           confidence = planningOptions[["confidence"]], 
                           expectedError = planningOptions[["expectedErrors"]], 
                           N = planningOptions[["populationSize"]], 
-                          prior = p1)
+                          prior = p1,
+                          increase = options[["sampleSizeIncrease"]])
       
       progressbarTick()
       
@@ -2017,7 +2099,8 @@
                           confidence = planningOptions[["confidence"]], 
                           expectedError = planningOptions[["expectedErrors"]], 
                           N = planningOptions[["populationSize"]], 
-                          prior = p2)
+                          prior = p2,
+                          increase = options[["sampleSizeIncrease"]])
       
       progressbarTick()
 
@@ -2033,7 +2116,8 @@
                           confidence = planningOptions[["confidence"]], 
                           expectedError = planningOptions[["expectedErrors"]], 
                           N = planningOptions[["populationSize"]], 
-                          prior = p3)
+                          prior = p3,
+                          increase = options[["sampleSizeIncrease"]])
 
       progressbarTick()
 
@@ -3270,7 +3354,8 @@
                                   confidence = evaluationOptions[["confidence"]], 
                                   expectedError = evaluationOptions[["expectedErrors"]], 
                                   N = evaluationOptions[["populationSize"]], 
-                                  prior = p)
+                                  prior = p,
+                                  increase = options[["sampleSizeIncrease"]])
 
     if(options[["useSumStats"]]){
       planningState[["sampleSize"]] <- options[["nSumStats"]]
@@ -3632,7 +3717,7 @@
 
   if(options[["maximumUncertaintyStatistic"]])
     evaluationTable$addColumnInfo(name = 'maximumUncertainty',         
-                                  title = gettext("Precision"), 
+                                  title = gettext("Obtained precision"), 
                                   type = 'string')
 
 
@@ -3874,7 +3959,7 @@
   evaluationContainer[["assumptionTable"]] <- assumptionTable
 
   if(options[["auditResult"]] == ""){
-        row <- list(type = "Tains are interchangeable across strata")
+        row <- list(type = "Taints are interchangeable across strata")
     assumptionTable$addRows(row)
     return()
   }

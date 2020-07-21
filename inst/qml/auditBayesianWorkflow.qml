@@ -289,6 +289,14 @@ Form
 						fieldWidth: 	40
 					}
 				}
+
+				RadioButton 
+				{
+					id: 					expectedAllPossible
+					name: 				"expectedAllPossible"
+					text: 				qsTr("All possible")
+					enabled:			stratificationTopAndBottom.checked
+				}
 			}
 
 		}
@@ -317,6 +325,7 @@ Form
 						id: 				stratificationTopAndBottom
 						text: 			qsTr("Integral top stratum + Sampled bottom stratum")
 						name: 			"stratificationTopAndBottom"
+						onCheckedChanged: if(checked) expectedAllPossible.click();
 					}
 				}
 
@@ -354,6 +363,19 @@ Form
 					id: 				betaBinomial
 					text: 			qsTr("Beta-binomial")
 					name: 			"hypergeometric"
+				}
+			}
+
+			GroupBox
+			{
+				title: qsTr("Sampling settings")
+
+				IntegerField 
+				{
+					name: "sampleSizeIncrease"
+					text: qsTr("Increase")
+					min: 1
+					defaultValue: 1
 				}
 			}
 
@@ -659,6 +681,7 @@ Form
 						id: 		recordSampling
 						text: 		qsTr("Record sampling")
 						name: 		"recordSampling"
+						enabled: 	!stratificationTopAndBottom.checked
 					}
 
 					HelpButton
@@ -680,6 +703,7 @@ Form
 						id: randomSampling
 						text: qsTr("Random sampling")
 						name: "randomSampling"
+						enabled: 	!stratificationTopAndBottom.checked
 					}
 
 					HelpButton
@@ -693,6 +717,7 @@ Form
 						id: 		cellSampling
 						text: 		qsTr("Cell sampling")
 						name: 		"cellSampling"
+						enabled: 	!stratificationTopAndBottom.checked
 					}
 
 					HelpButton
@@ -1240,7 +1265,7 @@ Form
 
 						CheckBox
 						{
-							text: 	qsTr("Precision")
+							text: 	qsTr("Obtained precision")
 							name: 	"maximumUncertaintyStatistic"
 							checked: reduceUncertainty.checked
 						}
