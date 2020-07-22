@@ -288,48 +288,23 @@
     selectionState <- .auditSelectionState(dataset, options, jaspResults[["planningState"]], 
                                            jaspResults[["selectionContainer"]])
 
-    if(options[["stratification"]] == "stratificationNone"){
-    
-      selectionState <- data.frame(selectionState)
-      dataset                       <- .readDataSetToEnd(columns.as.numeric = options[["recordNumberVariable"]])
-      sampleFilter                  <- rep(0, planningOptions[["populationSize"]])
-      rowNumber                     <- selectionState[["rowNumber"]]
-      sampleFilter[rowNumber]       <- selectionState[["count"]]
-      sampleFilter                  <- as.numeric(sampleFilter)
-      auditDataVariable             <- rep(NA, planningOptions[["populationSize"]])
-      auditDataVariable[options[["performAudit"]][[1]]$rowIndices] <- options[["performAudit"]][[1]]$values
+    selectionState                <- data.frame(selectionState)
+    dataset                       <- .readDataSetToEnd(columns.as.numeric = options[["recordNumberVariable"]])
+    sampleFilter                  <- rep(0, planningOptions[["populationSize"]])
+    rowNumber                     <- selectionState[["rowNumber"]]
+    sampleFilter[rowNumber]       <- selectionState[["count"]]
+    sampleFilter                  <- as.numeric(sampleFilter)
+    auditDataVariable             <- rep(NA, planningOptions[["populationSize"]])
+    auditDataVariable[options[["performAudit"]][[1]]$rowIndices] <- options[["performAudit"]][[1]]$values
 
-      if(is.null(jaspResults[["sampleFilter"]]))  
-        jaspResults[["sampleFilter"]] <- createJaspColumn(columnName = options[["sampleFilter"]], dependencies = "sampleFilter")
-      if(is.null(jaspResults[["variableName"]]))  
-        jaspResults[["variableName"]] <- createJaspColumn(columnName = options[["variableName"]], dependencies = "variableName")
+    if(is.null(jaspResults[["sampleFilter"]]))  
+      jaspResults[["sampleFilter"]] <- createJaspColumn(columnName = options[["sampleFilter"]], dependencies = "sampleFilter")
+    if(is.null(jaspResults[["variableName"]]))  
+      jaspResults[["variableName"]] <- createJaspColumn(columnName = options[["variableName"]], dependencies = "variableName")
 
-      jaspResults[["sampleFilter"]]$setScale(sampleFilter)
-      jaspResults[["variableName"]]$setScale(auditDataVariable)
+    jaspResults[["sampleFilter"]]$setScale(sampleFilter)
+    jaspResults[["variableName"]]$setScale(auditDataVariable)
 
-    } else if(options[["stratification"]] == "stratificationTopAndBottom"){
-
-      selectionState <- data.frame(selectionState)
-      dataset                       <- .readDataSetToEnd(columns.as.numeric = options[["recordNumberVariable"]])
-      sampleFilter                  <- rep(0, planningOptions[["populationSize"]])
-      topSample                     <- selectionState[which(selectionState[, .v(options[["monetaryVariable"]])] > ((planningOptions[["populationValue"]] / sum(selectionState[["count"]])))), 1]
-      sampleFilter[topSample]       <- 2
-      bottomSample                  <- selectionState[which(selectionState[, .v(options[["monetaryVariable"]])] <= ((planningOptions[["populationValue"]] / sum(selectionState[["count"]])))), 1]
-      sampleFilter[bottomSample]    <- 1
-
-      auditDataVariable             <- rep(NA, planningOptions[["populationSize"]])
-      auditDataVariable[options[["performAuditTopStratum"]][[1]]$rowIndices] <- options[["performAuditTopStratum"]][[1]]$values
-      auditDataVariable[options[["performAuditBottomStratum"]][[1]]$rowIndices] <- options[["performAuditBottomStratum"]][[1]]$values
-
-      if(is.null(jaspResults[["sampleFilter"]]))  
-        jaspResults[["sampleFilter"]] <- createJaspColumn(columnName = options[["sampleFilter"]], dependencies = "sampleFilter")
-      if(is.null(jaspResults[["variableName"]]))  
-        jaspResults[["variableName"]] <- createJaspColumn(columnName = options[["variableName"]], dependencies = "variableName")
-
-      jaspResults[["sampleFilter"]]$setScale(sampleFilter)
-      jaspResults[["variableName"]]$setScale(auditDataVariable)
-
-    }
   }
 }
 
@@ -804,7 +779,8 @@
                                            "selectionType",
                                            "seed",
                                            "intervalStartingPoint",
-                                           "sampleSize"))
+                                           "sampleSize",
+                                           "stratification"))
 
     jaspResults[["selectionContainer"]] <- analysisContainer
 
@@ -1495,7 +1471,8 @@
                                 planningOptions, 
                                 planningContainer, 
                                 ready, 
-                                type, jaspResults){
+                                type, 
+                                jaspResults){
                                   
   if(!is.null(planningContainer[["planningState"]])){
 
@@ -1560,17 +1537,19 @@
 
         for(n in seq(5, nrow(dataset), by = options[["sampleSizeIncrease"]])){
           
-
-            interval <- floor(planningOptions[["populationValue"]] / n) 
+            interval <- (planningOptions[["populationValue"]] / n) 
             topStratum <- subset(dataset, dataset[, .v(options[["monetaryVariable"]])] > interval)
             bottomStratum <- subset(dataset, dataset[, .v(options[["monetaryVariable"]])] <= interval)
 
             m_seen <- sum(topStratum[, .v(options[["monetaryVariable"]])]) 
+            set.seed(rnorm(1))
+            intervalStartingPoint <- sample(1:(interval - 1), size = 1)
 
-            intervalStartingPoint <- sample(1:(interval -1), size = 1)
-            indexEuros <- intervalStartingPoint + 0:(n-1) * interval
-            mat <- rep(as.numeric(dataset[, .v(options[["recordNumberVariable"]])]), times = ceiling(dataset[, .v(options[["monetaryVariable"]])]))
-            index <- mat[indexEuros]
+            intervalSelection <- intervalStartingPoint + 0:(n - 1) * interval
+            index <- NULL
+            for(i in 1:n){
+              index <- c(index, which(intervalSelection[i] < cumsum(dataset[, .v(options[["monetaryVariable"]])]))[1])
+            }
             sample <- dataset[index, ]
             sample <- unique(sample)
 
@@ -1609,7 +1588,8 @@
                           prior = list(aPrior = 1, 
                                       bPrior = 1, 
                                       nPrior = 0, 
-                                      kPrior = 0))
+                                      kPrior = 0),
+                          startingPoint = intervalStartingPoint)
 
       } else {
 
@@ -1958,6 +1938,11 @@
   }
 
   summaryTable$addRows(row)
+
+  if(type == "bayesian" && options[["stratification"]] == "stratificationTopAndBottom"){
+    message <- gettextf("The value %1$s is automatically used as a starting point for the fixed interval selection.", planningState[["startingPoint"]])
+    summaryTable$addFootnote(message, symbol = gettextf("%1$s", "\u26A0"))
+  }
 }
 
 .sampleSizeComparisonPlot <- function(options, 
@@ -2496,8 +2481,7 @@
 
   if(units == "records" && algorithm == "interval"){
 
-    interval <- ceiling(nrow(dataset) / 
-                        planningState[["sampleSize"]])
+    interval <- (nrow(dataset) / planningState[["sampleSize"]])
     if(options[["seed"]] > interval){
       selectionContainer$setError(gettext("Your specified starting point lies outside the selection interval."))
       return()
@@ -2505,13 +2489,17 @@
 
   } else if (units == "mus" && algorithm == "interval"){
 
-    interval <- ceiling(sum(dataset[, bookValues]) / 
-                        planningState[["sampleSize"]])
+    interval <- (sum(dataset[, bookValues]) / planningState[["sampleSize"]])
     if(options[["seed"]] > interval){
       selectionContainer$setError("Your specified starting point lies outside the selection interval.")
       return()
     }
 
+  }
+
+  startingPointSeed <- options[["seed"]]
+  if(!is.null(planningState[["startingPoint"]])){
+    startingPointSeed <- planningState[["startingPoint"]]
   }
 
   sample <- jfa::sampling(population = dataset, 
@@ -2521,7 +2509,7 @@
                           seed = options[["seed"]],
                           ordered = FALSE,
                           bookValues = bookValues,
-                          intervalStartingPoint = options[["seed"]])                                
+                          intervalStartingPoint = startingPointSeed)                                
 
   sample <- data.frame(sample[["sample"]])
   sample[, 1:2] <- apply(X = sample[, 1:2], MARGIN = 2, as.numeric)
@@ -2578,13 +2566,15 @@
     selectionInformationTable$addColumnInfo(name = "interval", 
                                             title ="Interval", 
                                             type = "string")
-
+  
   if(options[["selectionMethod"]] != "systematicSampling"){
-    message <- gettextf("The sample is drawn with <i>seed %1$s</i>.",
-                        options[["seed"]])
+    message <- gettextf("The sample is drawn with <i>seed %1$s</i>.", options[["seed"]])
   } else {
-    message <- gettextf("Unit %1$s is selected from each interval.",
-                        options[["seed"]])
+    startingPointSeed <- options[["seed"]]
+    if(!is.null(planningState[["startingPoint"]])){
+      startingPointSeed <- planningState[["startingPoint"]]
+    }
+    message <- gettextf("Unit %1$s is selected from each interval.", startingPointSeed)
   }
 
   selectionInformationTable$addFootnote(message)
@@ -2597,21 +2587,16 @@
   if(options[["selectionType"]] == "recordSampling" || 
       !is.null(selectionState[["musFailed"]])){
 
-    interval <- ceiling(planningOptions[["populationSize"]] / 
-                        planningState[["sampleSize"]])
-
+    interval <- (planningOptions[["populationSize"]] / planningState[["sampleSize"]])
   } else {
-
-    interval <- ceiling(planningOptions[["populationValue"]] / 
-                        planningState[["sampleSize"]])
-
+    interval <- (planningOptions[["populationValue"]] / planningState[["sampleSize"]])
   }
 
   sampleSize <- sum(selectionState[["count"]])
 
   if(options[["materiality"]] == "materialityAbsolute"){
 
-    value <- ceiling(sum(abs(selectionState[, .v(options[["monetaryVariable"]])])))
+    value <- round(sum(abs(selectionState[, .v(options[["monetaryVariable"]])])), 2)
     percentage <- paste0(round(value / planningOptions[["populationValue"]] * 100, 2), "%")
 
     row  <- data.frame("size" = sampleSize, 
@@ -2621,22 +2606,15 @@
   } else {
 
     percentage <- paste0(round(sampleSize / planningOptions[["populationSize"]] * 100, 2), "%")
-
-    row <- data.frame("size" = sampleSize, 
-                      "percentage" = percentage)
+    row <- data.frame("size" = sampleSize, "percentage" = percentage)
   
   }
 
   if(options[["selectionMethod"]] != "randomSampling"){
-
-    if(options[["selectionType"]] == "musSampling" && 
-        is.null(selectionState[["musFailed"]])){
-
-      row <- cbind(row, 
-                   interval = paste(planningOptions[["valuta"]], interval))
+    if(options[["selectionType"]] == "musSampling" && is.null(selectionState[["musFailed"]])){
+      row <- cbind(row, interval = paste(planningOptions[["valuta"]], round(interval, 2)))
     } else {
-      row <- cbind(row, 
-                  interval = interval)
+      row <- cbind(row, interval = round(interval, 2))
     }
   }
 
@@ -2680,8 +2658,8 @@
                               type = "string")                               
     selectionContainer[["stratumTable"]] <- stratumTable
 
-    interval <- ceiling(planningOptions[["populationValue"]] / 
-                        planningState[["sampleSize"]])
+    interval <- round(planningOptions[["populationValue"]] / 
+                        planningState[["sampleSize"]], 2)
 
     topStratum <- dataset[which(dataset[, .v(options[["monetaryVariable"]])] > interval), ]
     bottomStratum <- dataset[which(dataset[, .v(options[["monetaryVariable"]])] <= interval), ]
@@ -2694,7 +2672,7 @@
     row <- data.frame(stratum = c("Top stratum", "Bottom stratum", "Population"), 
                 size = c(nrow(topStratum), nrow(dataset) - nrow(topStratum), nrow(dataset)), 
                 samplesize = c(nrow(topStratum), sampleSize - nrow(topStratum), sampleSize), 
-                value = c(paste(planningOptions[["valuta"]], topStratumValue), paste(planningOptions[["valuta"]], bottomStratumValueSample), paste(planningOptions[["valuta"]], planningOptions[["populationValue"]])),
+                value = c(paste(planningOptions[["valuta"]], topStratumValue), paste(planningOptions[["valuta"]], bottomStratumValueSample), paste(planningOptions[["valuta"]], round(planningOptions[["populationValue"]], 2))),
                 samplevalue = c(paste(planningOptions[["valuta"]], topStratumValue), paste(planningOptions[["valuta"]], bottomStratumValueSample), paste(planningOptions[["valuta"]], bottomStratumValueSample + topStratumValue)),
                 stratumpercentage = c("100%", paste0(round(bottomStratumValueSample / bottomStratumValuePopulation * 100, 2), "%"), paste0(round((bottomStratumValueSample + topStratumValue) / planningOptions[["populationValue"]] * 100, 2), "%")))
     stratumTable$setData(row)
@@ -2755,8 +2733,8 @@
                                 title = "Stratum")
 
       stratum <- rep(NA, length(dat))
-      interval <- ceiling(planningOptions[["populationValue"]] / 
-                          sum(selectionState[["count"]]))
+      interval <- round(planningOptions[["populationValue"]] / 
+                          sum(selectionState[["count"]]), 2)
 
       stratum[which(selectionState[, .v(options[["monetaryVariable"]])] > interval)] <- "Top"
       stratum[which(selectionState[, .v(options[["monetaryVariable"]])] <= interval)] <- "Bottom"
@@ -3047,12 +3025,13 @@
 
       if(options[["stratification"]] == "stratificationTopAndBottom"){
 
-        interval <- ceiling(planningOptions[["populationValue"]] / sum(selectionState[["count"]])) # Adjust
+        interval <- (planningOptions[["populationValue"]] / sum(selectionState[["count"]])) # Adjust
         
         topStratum <- sample[which(sample[, .v(options[["monetaryVariable"]])] > interval), ]
 
         bottomStratum <- sample[which(sample[, .v(options[["monetaryVariable"]])] <= interval), ]
         M_unseen <- planningOptions[["populationValue"]] - sum(sample[, .v(options[["monetaryVariable"]])])
+        m_seen_percentage <- (planningOptions[["populationValue"]] - M_unseen) / planningOptions[["populationValue"]]
 
         overstatement_top <- sum(topStratum[, .v(options[["monetaryVariable"]])] - topStratum[, .v(options[["auditResult"]])]) 
         overstatement_bottomseen <- sum(bottomStratum[, .v(options[["monetaryVariable"]])] - bottomStratum[, .v(options[["auditResult"]])])   # The observed overstatement in the bottom stratum
@@ -3082,11 +3061,13 @@
         UB_relativeOverstatement <- UB_overstatement_total / planningOptions[["populationValue"]]
         relativeInaccuracy <- absoluteInaccuracy / planningOptions[["populationValue"]]
 
+        #obtainedInaccuracy <- options[["maximumUncertaintyPercentage"]] * (1 - m_seen_percentage)
+
         result <- list(confBound = UB_relativeOverstatement,
                        precision = relativeInaccuracy,
                        k = length(which(taints != 0)),
                        t = sum(taints),
-                       n = nrow(bottomStratum),
+                       n = sum(selectionState[["count"]]),
                        conclusion = "Approve population",
                        kPrior = 0,
                        nPrior = 0,
@@ -3945,21 +3926,21 @@
                                 title = gettext(""),
                                 type = 'string')
   assumptionTable$addColumnInfo(name = 'correlation', 
-                                title = gettext("Correlation"), 
+                                title = gettextf("Spearman's %1$s", "\u03C1"), 
                                 type = 'string')
   assumptionTable$addColumnInfo(name = 'pvalue', 
-                                title = gettext("p value"), 
+                                title = gettext("<i>p</i>"), 
                                 type = 'pvalue')
    assumptionTable$addColumnInfo(name = 'bayesfactor', 
-                                title = gettext("BF01"), 
+                                title = gettextf("BF%1$s", "\u2080\u2081"), 
                                 type = 'string')  
 
-  assumptionTable$addFootnote("A p value lower than 0.05 implies that there is a significant correlation.", symbol = "<i>Note.</i>")
+  assumptionTable$addFootnote(gettextf("<i>p</i> < .05 or %1$s > 19 implies that an assumption might be violated.", "BF\u2080\u2081"), symbol = gettext("<i>Note.</i>"))
 
   evaluationContainer[["assumptionTable"]] <- assumptionTable
 
   if(options[["auditResult"]] == ""){
-        row <- list(type = "Taints are interchangeable across strata")
+        row <- list(type = gettext("Taints are interchangeable across strata"))
     assumptionTable$addRows(row)
     return()
   }
@@ -3971,8 +3952,9 @@
     cor <- cor(bookValues, taints)
     pval <- cor.test(bookValues, taints)$p.value # Frequentistisch
     bf <- .audit_jzs_corbf(r = cor(bookValues, taints), n = nrow(sample)) # Bayesiaans
+    bf <- 1 / bf
 
-    row <- list(type = "Tains are interchangeable across strata", 
+    row <- list(type = gettext("Taints are interchangeable across strata"), 
                 correlation = round(cor, 3),
                 pvalue = pval,
                 bayesfactor = round(bf, 3))

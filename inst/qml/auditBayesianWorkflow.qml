@@ -271,7 +271,7 @@ Form
 						decimals: 		2
 						visible: 		expectedAbsolute.checked
 						fieldWidth: 	60
-						label: 			materialityAbsolute.checked ? "$" : ""
+						label: 			performanceMateriality.checked && materialityAbsolute.checked ? "$" : ""
 					}
 				}
 
@@ -318,6 +318,7 @@ Form
 						text: 			qsTr("No stratification")
 						name: 			"stratificationNone"
 						checked: 		true
+						onCheckedChanged: if(checked) expectedRelative.click();
 					}
 
 					RadioButton
@@ -750,6 +751,7 @@ Form
 					min: 						1
 					max: 						99999
 					fieldWidth: 		60
+					enabled: 				!stratificationTopAndBottom.checked
 				}
 			}
 		}
@@ -970,14 +972,6 @@ Form
 						performAuditTable.colName   = variableName.value
 						performAuditTable.filter 	= sampleFilter.value + " > 0"
 						performAuditTable.extraCol	= sampleFilter.value
-
-						performAuditTableTopStratum.colName   = variableName.value
-						performAuditTableTopStratum.filter 	= sampleFilter.value + " > 1"
-						performAuditTableTopStratum.extraCol	= sampleFilter.value
-
-						performAuditTableBottomStratum.colName   = variableName.value
-						performAuditTableBottomStratum.filter 	= sampleFilter.value + " < 2 & " + sampleFilter.value + " > 0"
-						performAuditTableBottomStratum.extraCol	= sampleFilter.value
 					}
 
 				}
@@ -1003,83 +997,11 @@ Form
 			title:								"Data Entry"
 			expanded:							pasteVariables.checked
 			enabled:							pasteVariables.checked
-			visible:							!stratificationTopAndBottom.checked
 
 			TableView
 			{
 				id:									performAuditTable
 				name:								"performAudit"
-				Layout.fillWidth: 	true
-				modelType:					"FilteredDataEntryModel"
-				source:     				["recordNumberVariable", "monetaryVariable", "additionalVariables"]
-				colName:    				"Filter"
-				itemType:						"double"
-			}
-		}
-
-		Section
-		{
-			id: 									executeAuditSectionTopStratum
-			title:								"Top stratum"
-			expanded:							pasteVariables.checked
-			enabled:							pasteVariables.checked
-			visible:							stratificationTopAndBottom.checked
-
-			TableView
-			{
-				id:									performAuditTableTopStratum
-				name:								"performAuditTopStratum"
-				Layout.fillWidth: 	true
-				modelType:					"FilteredDataEntryModel"
-				source:     				["recordNumberVariable", "monetaryVariable", "additionalVariables"]
-				colName:    				"Filter"
-				itemType:						"double"
-			}
-		// }
-
-		// Item
-		// {
-		// 	Layout.preferredHeight: tobottomstratum.height
-		// 	Layout.fillWidth: 			true
-		// 	enabled:								!bottomstratumChecked.checked
-
-			CheckBox
-			{
-				id: 									bottomstratumChecked
-				anchors.right: 				tobottomstratum.left
-				width: 								height
-				visible: 							false
-				name: 								"bottomstratumChecked"
-				checked: 							false
-			}
-
-			Button
-			{
-				id: 									tobottomstratum
-				enabled: 							pasteVariables.checked
-				anchors.right: 				parent.right
-				text: 								qsTr("<b>To Bottom Stratum</b>")
-				onClicked:
-				{
-					executeAuditSectionBottomStratum.expanded	= true
-					executeAuditSectionTopStratum.expanded = false
-					bottomstratumChecked.checked = true
-				}
-			}
-		}
-
-		Section
-		{
-			id: 										executeAuditSectionBottomStratum
-			title:									"Bottom stratum"
-			expanded:								tobottomstratum.checked
-			enabled:								bottomstratumChecked.checked
-			visible:								stratificationTopAndBottom.checked
-
-			TableView
-			{
-				id:									performAuditTableBottomStratum
-				name:								"performAuditBottomStratum"
 				Layout.fillWidth: 	true
 				modelType:					"FilteredDataEntryModel"
 				source:     				["recordNumberVariable", "monetaryVariable", "additionalVariables"]

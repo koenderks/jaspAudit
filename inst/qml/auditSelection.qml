@@ -97,6 +97,35 @@ Form {
 		visible: 											false
 	}
 
+	Section {
+		title: 		qsTr("Stratification")
+		columns: 1
+
+			RadioButtonGroup
+			{
+				id: 			stratification
+				title: 		qsTr("Stratification")
+				name: 		"stratification"
+				enabled:	recordNumberVariable.count > 0 & monetaryVariable.count > 0
+
+				RadioButton
+				{
+					id: 				stratificationNone
+					text: 			qsTr("No stratification")
+					name: 			"stratificationNone"
+					checked: 		true
+				}
+
+				RadioButton
+				{
+					id: 				stratificationTopAndBottom
+					text: 			qsTr("Integral top stratum + Sampled bottom stratum")
+					name: 			"stratificationTopAndBottom"
+				}
+			}
+
+	}
+
 	Section
 	{
 		title: 												qsTr("Advanced Options")
