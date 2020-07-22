@@ -16,319 +16,354 @@
 // When making changes to this file always mention @koenderks as a
 // reviewer in the Pull Request
 
-import QtQuick 2.8
-import QtQuick.Layouts 1.3
-import JASP.Controls 1.0
-import JASP.Widgets 1.0
+import QtQuick 						2.8
+import QtQuick.Layouts 		1.3
+import JASP.Controls 			1.0
+import JASP.Widgets 			1.0
 
-Form {
+Form 
+{
+	usesJaspResults: 											true
+	columns: 															2
 
-	usesJaspResults: 								true
+	// Extra options
+	CheckBox 
+	{ 
+		name: 															"workflow"
+		checked: 														false
+		visible: 														false
+	}
 
-	// Extra options 
-	CheckBox { name: "workflow"; checked: false; visible: false}
+	RadioButtonGroup
+	{
+		name:																"stratification"
+		visible:														false
+
+		RadioButton
+		{
+			name:															"stratificationNone"
+			checked:													true
+			visible:													false
+		}
+	}
 
 	VariablesForm
 	{
-		id: 													variablesFormSampling
-		implicitHeight:								300
+		id: 																variablesFormSampling
 
 		AvailableVariablesList
 		{
-			name: 											"variablesFormSampling"
+			name: 														"variablesFormSampling"
 		}
 
 		AssignedVariablesList
 		{
-			id: 												recordNumberVariable
-			name: 											"recordNumberVariable"
-			title: 											qsTr("Record ID's")
-			singleVariable:							true
-			allowedColumns:							["nominal", "nominalText", "ordinal", "scale"]
-			allowAnalysisOwnComputedColumns: false
+			id: 															recordNumberVariable
+			name: 														"recordNumberVariable"
+			title: 														qsTr("Record ID's")
+			singleVariable:										true
+			allowedColumns:										["nominal", "nominalText", "ordinal", "scale"]
+			allowAnalysisOwnComputedColumns: 	false
 		}
 
 		AssignedVariablesList
 		{
-			id: 												monetaryVariable
-			name: 											"monetaryVariable"
-			title: 											musSampling.checked ? qsTr("Book Values <i>(required)</i>") : qsTr("Book Values <i>(optional)</i>")
-			singleVariable: 						true
-			allowedColumns: 						["scale"]
-			allowAnalysisOwnComputedColumns: false
+			id: 															monetaryVariable
+			name: 														"monetaryVariable"
+			title: 														musSampling.checked ? qsTr("Book Values <i>(required)</i>") : qsTr("Book Values <i>(optional)</i>")
+			singleVariable: 									true
+			allowedColumns: 									["scale"]
+			allowAnalysisOwnComputedColumns: 	false
 		}
 
 		AssignedVariablesList
 		{
-			name: 											"rankingVariable"
-			title: 											qsTr("Ranking Variable <i>(optional)</i>")
-			singleVariable:							true
-			allowedColumns:							["scale"]
-			allowAnalysisOwnComputedColumns: false
+			name: 														"rankingVariable"
+			title: 														qsTr("Ranking Variable <i>(optional)</i>")
+			singleVariable:										true
+			allowedColumns:										["scale"]
+			allowAnalysisOwnComputedColumns: 	false
 		}
 
 		AssignedVariablesList
 		{
-			name:												"additionalVariables"
-			title: 											qsTr("Additional Variables <i>(optional)</i>")
-			Layout.preferredHeight: 		140 * preferencesModel.uiScale
-			allowedColumns: 						["scale", "ordinal", "nominal"]
-			allowAnalysisOwnComputedColumns: false
+			name:															"additionalVariables"
+			title: 														qsTr("Additional Variables <i>(optional)</i>")
+			Layout.preferredHeight: 					140 * preferencesModel.uiScale
+			allowedColumns: 									["scale", "ordinal", "nominal"]
+			allowAnalysisOwnComputedColumns: 	false
 		}
 	}
 
 	IntegerField
 	{
-		id:														sampleSize
-		text: 												qsTr("Sample size")
-		name: 												"sampleSize"
-		defaultValue: 								0
-		min: 													0
-		max: 													99999
-		fieldWidth: 									60
+		id:																	sampleSize
+		text: 															qsTr("Sample size")
+		name: 															"sampleSize"
+		defaultValue: 											0
+		min: 																0
+		max: 																99999
+		fieldWidth: 												60
 	}	
 
-	CheckBox
+	GroupBox
 	{
-		id: 													explanatoryText
-		text: 												qsTr("Enable")
-		name: 												"explanatoryText"
-		checked: 											true
-		visible: 											false
-	}
+		title: 															qsTr("Explanatory Text")
+		columns: 														2
+		visible:														false
 
-	Section {
-		title: 		qsTr("Stratification")
-		columns: 1
-
-			RadioButtonGroup
-			{
-				id: 			stratification
-				title: 		qsTr("Stratification")
-				name: 		"stratification"
-				enabled:	recordNumberVariable.count > 0 & monetaryVariable.count > 0
-
-				RadioButton
-				{
-					id: 				stratificationNone
-					text: 			qsTr("No stratification")
-					name: 			"stratificationNone"
-					checked: 		true
-				}
-
-				RadioButton
-				{
-					id: 				stratificationTopAndBottom
-					text: 			qsTr("Integral top stratum + Sampled bottom stratum")
-					name: 			"stratificationTopAndBottom"
-				}
-			}
-
-	}
-
-	Section
-	{
-		title: 												qsTr("Advanced Options")
-
-		GridLayout
+		CheckBox
 		{
-			columns:										3	
+			id: 															explanatoryText
+			text: 														qsTr("Enable")
+			name: 														"explanatoryText"
+			checked: 													true
+		}
 
-			RadioButtonGroup
-			{
-				id: 							selectionType
-				title:							qsTr("Sampling Units")
-				name: 							"selectionType"
-				columns:						2
-
-				RadioButton
-				{
-					id: 						musSampling
-					text: 						qsTr("Monetary unit sampling")
-					name: 						"musSampling"
-					enabled: 					monetaryVariable.count > 0
-				}
-
-				HelpButton
-				{
-					helpPage:					"Audit/monetaryUnitSampling"
-					toolTip: 					qsTr("Select observations with probability proportional to their value")
-				}
-
-				RadioButton
-				{
-					id: 						recordSampling
-					text: 						qsTr("Record sampling")
-					name: 						"recordSampling"
-					checked: 					true
-				}
-
-				HelpButton
-				{
-					toolTip: 					qsTr("Select observations with equal probability")
-					helpPage:					"Audit/recordSampling"
-				}
-			}
-
-			RadioButtonGroup
-			{
-				id: 							selectionMethod
-				title:							qsTr("Selection Method")
-				name: 							"selectionMethod"
-				columns:						2
-
-				RadioButton
-				{
-					id: 						randomSampling
-					text: 						qsTr("Random sampling")
-					name: 						"randomSampling"
-				}
-
-				HelpButton
-				{
-					toolTip: 					qsTr("Select observations by random sampling")
-					helpPage:					"Audit/randomSampling"
-				}
-
-				RadioButton
-				{
-					id: 						cellSampling
-					text: 						qsTr("Cell sampling")
-					name: 						"cellSampling"
-				}
-
-				HelpButton
-				{
-					toolTip: 					qsTr("Select observations by cell sampling")
-					helpPage:					"Audit/cellSampling"
-				}
-
-				RadioButton
-				{
-					id: 						systematicSampling
-					text: 						qsTr("Fixed interval sampling")
-					name: 						"systematicSampling"
-					checked: 					true
-				}
-
-				HelpButton
-				{
-					toolTip: 					qsTr("Select observations by fixed interval sampling")
-					helpPage:					"Audit/fixedIntervalSampling"
-				}
-			}
-
-			IntegerField
-			{
-				id: 											seed
-				text: 										systematicSampling.checked ? qsTr("Starting point") : qsTr("Seed")
-				name: 										"seed"
-				defaultValue: 						1
-				min: 											1
-				max: 											99999
-				fieldWidth: 							60
-			}
+		HelpButton
+		{
+			helpPage:													"Audit/explanatoryText"
+			toolTip: 													qsTr("Show explanatory text at each step of the analysis")
 		}
 	}
 
 	Section
 	{
-		title: 												qsTr("Tables and Plots")
+		title: 															qsTr("A.    Advanced Options")
+		columns:														3
 
-		GridLayout
+		RadioButtonGroup
 		{
-			GroupBox
+			id: 															selectionType
+			title:														qsTr("Sampling Units")
+			name: 														"selectionType"
+			columns:													2
+
+			RadioButton
 			{
-				id: 											samplingTables
-				title: 										qsTr("Tables")
+				id: 														musSampling
+				text: 													qsTr("Monetary unit sampling")
+				name: 													"musSampling"
+				enabled: 												monetaryVariable.count > 0
+			}
 
-				CheckBox 
-				{ 
-																	text: qsTr("Display selected observations")
-																	name: "displaySample"									
-				}
+			HelpButton
+			{
+				helpPage:												"Audit/monetaryUnitSampling"
+				toolTip: 												qsTr("Select observations with probability proportional to their value")
+			}
 
-				CheckBox 
+			RadioButton
+			{
+				id: 														recordSampling
+				text: 													qsTr("Record sampling")
+				name: 													"recordSampling"
+				checked: 												true
+			}
+
+			HelpButton
+			{
+				toolTip: 												qsTr("Select observations with equal probability")
+				helpPage:												"Audit/recordSampling"
+			}
+		}
+
+		RadioButtonGroup
+		{
+			id: 															selectionMethod
+			title:														qsTr("Selection Method")
+			name: 														"selectionMethod"
+			columns:													2
+
+			RadioButton
+			{
+				id: 														randomSampling
+				text: 													qsTr("Random sampling")
+				name: 													"randomSampling"
+			}
+
+			HelpButton
+			{
+				toolTip: 												qsTr("Select observations by random sampling")
+				helpPage:												"Audit/randomSampling"
+			}
+
+			RadioButton
+			{
+				id: 														cellSampling
+				text: 													qsTr("Cell sampling")
+				name: 													"cellSampling"
+			}
+
+			HelpButton
+			{
+				toolTip: 												qsTr("Select observations by cell sampling")
+				helpPage:												"Audit/cellSampling"
+			}
+
+			RadioButton
+			{
+				id: 														systematicSampling
+				text: 													qsTr("Fixed interval sampling")
+				name: 													"systematicSampling"
+				checked: 												true
+			}
+
+			HelpButton
+			{
+				toolTip: 												qsTr("Select observations by fixed interval sampling")
+				helpPage:												"Audit/fixedIntervalSampling"
+			}
+		}
+
+		IntegerField
+		{
+			id: 															seed
+			text: 														systematicSampling.checked ? qsTr("Starting point") : qsTr("Seed")
+			name: 														"seed"
+			defaultValue: 										1
+			min: 															1
+			max: 															99999
+			fieldWidth: 											60
+		}
+	}
+
+	Section
+	{
+		title: 															qsTr("B.    Tables and Plots")
+		columns:														2
+
+		GroupBox
+		{
+			id: 															samplingTables
+			title: 														qsTr("Tables")
+
+			CheckBox 
+			{ 
+				text: 													qsTr("Display selected observations")
+				name: 													"displaySample"									
+			}
+
+			CheckBox 
+			{ 
+				id: 														sampleDescriptives
+				text: 													qsTr("Selection descriptives")
+				name: 													"sampleDescriptives"	
+			}
+
+			GridLayout
+			{
+				Layout.leftMargin: 							20 * preferencesModel.uiScale
+
+				ColumnLayout
 				{
-					id: 										sampleDescriptives 
-					text: 									qsTr("Selection descriptives")
-					name: 									"sampleDescriptives"
-				}
+					spacing: 											5 * preferencesModel.uiScale
 
-				GridLayout
-				{
-					Layout.leftMargin: 			20 * preferencesModel.uiScale
-
-					ColumnLayout
-					{
-						spacing: 							5 * preferencesModel.uiScale
-
-						CheckBox { 						text: qsTr("Mean"); 						name: "mean"; 		enabled: sampleDescriptives.checked; checked: true	}
-						CheckBox { 						text: qsTr("Median"); 					name: "median"; 	enabled: sampleDescriptives.checked; checked: true	}
-						CheckBox { 						text: qsTr("Std. deviation"); 	name: "sd"; 			enabled: sampleDescriptives.checked; checked: true	}
-						CheckBox { 						text: qsTr("Variance"); 				name: "var"; 			enabled: sampleDescriptives.checked					}
+					CheckBox 
+					{ 
+						text: 											qsTr("Mean")
+						name: 											"mean"
+						enabled: 										sampleDescriptives.checked
+						checked: 										true	
 					}
+					
+					CheckBox 
+					{ 
+						text: 											qsTr("Median")			
+						name: 											"median"
+						enabled: 										sampleDescriptives.checked
+						checked: 										true	
+					}
+					
+					CheckBox 
+					{ 
+						text: 											qsTr("Std. deviation")	
+						name: 											"sd"
+						enabled: 										sampleDescriptives.checked
+						checked: 										true	
+					}
+					
+					CheckBox 
+					{ 
+						text: 											qsTr("Variance") 			
+						name: 											"var"
+						enabled: 										sampleDescriptives.checked					
+					}
+				}
 
-					ColumnLayout
-					{
-						spacing: 							5 * preferencesModel.uiScale
+				ColumnLayout
+				{
+					spacing: 											5 * preferencesModel.uiScale
 
-						CheckBox { 						text: qsTr("Minimum"); 					name: "min"; 			enabled: sampleDescriptives.checked	}
-						CheckBox { 						text: qsTr("Maximum"); 					name: "max"; 			enabled: sampleDescriptives.checked	}
-						CheckBox { 						text: qsTr("Range"); 						name: "range"; 		enabled: sampleDescriptives.checked	}
+					CheckBox 
+					{ 
+						text: 											qsTr("Minimum")	
+						name: 											"min"	
+						enabled: 										sampleDescriptives.checked	
+					}
+					
+					CheckBox 
+					{ 
+						text: 											qsTr("Maximum")
+						name: 											"max"	
+						enabled: 										sampleDescriptives.checked	
+					}
+					
+					CheckBox 
+					{ 
+						text: 											qsTr("Range")
+						name: 											"range"
+						enabled: 										sampleDescriptives.checked	
 					}
 				}
 			}
+		}
 
-			GroupBox
-			{
-				id: 											samplingPlots
-				title: 										qsTr("Plots")
+		GroupBox
+		{
+			id: 															samplingPlots
+			title: 														qsTr("Plots")
 
-				CheckBox { 
-					text: qsTr("Population and sample histograms")
-					name: "plotHistograms"
-					enabled: recordNumberVariable.count > 0	& monetaryVariable.count > 0				
-				}
-
+			CheckBox 
+			{ 
+				text: 													qsTr("Population and sample histograms")
+				name: 													"plotHistograms"
+				enabled: 												recordNumberVariable.count > 0	& monetaryVariable.count > 0				
 			}
 		}
 	}
 
 	CheckBox 
 	{ 
-			id: addSampleIndicator  
-			name: "addSampleIndicator"
-			text: qsTr("Add selection counter to data")
-			enabled: recordNumberVariable.count > 0
+		id: 																addSampleIndicator  
+		name: 															"addSampleIndicator"
+		text: 															qsTr("Add selection counter to data")
+		enabled: 														recordNumberVariable.count > 0
 
-			ComputedColumnField 
-			{ 
-					name: 			"sampleIndicatorColumn"
-					text: 			qsTr("Column name: ")
-					fieldWidth: 120
-					visible:    addSampleIndicator.checked
-			}
+		ComputedColumnField 
+		{ 
+				id:															sampleIndicatorColumn
+				name: 													"sampleIndicatorColumn"
+				text: 													qsTr("Column name: ")
+				fieldWidth: 										120
+				visible:    										addSampleIndicator.checked
+		}
 	}
 
 	Item
 	{
-		Layout.preferredHeight: 			downloadReportSelection.height
-		Layout.fillWidth: 						true
-		Layout.columnSpan:						2
+		Layout.preferredHeight: 						downloadReportSelection.height
+		Layout.fillWidth: 									true
+		Layout.columnSpan:									2
 
 		Button
 		{
-			id: 												downloadReportSelection
-			enabled:										sampleSize.value > 0
-			anchors.right: 							parent.right
-			anchors.bottom: 						parent.bottom
-			text: 											qsTr("<b>Download Report</b>")
-			
-			onClicked:
-			{
-				form.exportResults()
-			}
+			id: 															downloadReportSelection
+			enabled:													sampleSize.value > 0
+			anchors.right: 										parent.right
+			anchors.bottom: 									parent.bottom
+			text: 														qsTr("<b>Download Report</b>")
+			onClicked: 												form.exportResults()
 		}
 	}
 }

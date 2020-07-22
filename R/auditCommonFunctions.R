@@ -26,6 +26,8 @@
 
   ### PROCEDURE STAGE ###
   .auditProcedureStage(options, jaspResults)
+  ready <- .auditReadyForNextStage(options, jaspResults, stage = "procedure")
+  if(!ready) return() # Stop if no sampling objective is selected
 
   ### PLANNING STAGE ###
   .auditPlanningStage(options, jaspResults, type, workflow = TRUE)
@@ -109,7 +111,7 @@
 
   } else if(!workflow){
 
-    .auditCreateTableNumber(jaspResults) # Initialize table numbers
+    .auditCreateTableNumber(jaspResults)  # Initialize table numbers
     .auditCreateFigureNumber(jaspResults) # Initialize figure numbers
 
     # Deduct the nessecary values from the input options
@@ -126,6 +128,7 @@
 
   # Check if the options have valid values for running the analysis
   ready <- .auditReadyForAnalysis(options, planningOptions, stage = "planning")
+  if(!(options[['performanceMateriality']] || options[["reduceUncertainty"]])) return() # Stop if no sampling objective is selected
 
   # Create the container that holds the planning output
   planningContainer <- .auditAnalysisContainer(jaspResults, stage = "planning",
@@ -1002,9 +1005,12 @@
 }
 
 .auditReadyForNextStage <- function(options, jaspResults, stage){
-  if(stage == "planning"){
+  if(stage == "procedure"){
+    # Check whether any of the two sampling objectives is selected
+    ready <- options[["performanceMateriality"]] || options[["reduceUncertainty"]]
+  } else if(stage == "planning"){
     # Check whether the "To selection" button is pressed and no error occurred in the previous stage
-    ready <- options[["samplingChecked"]] && !jaspResults[["planningContainer"]]$getError()
+    ready <- options[["samplingChecked"]] && !jaspResults[["planningContainer"]]$getError() && (options[["performanceMateriality"]] || options[["reduceUncertainty"]])
   } else if(stage == "selection"){
     
   } else if(stage == "execution"){
@@ -1061,10 +1067,25 @@
 
       procedureContainer <- .auditAnalysisContainer(jaspResults, stage = "procedure",
                                                     position = 1)
-      procedureText <- gettextf("The objective of this substantive testing procedure is to determine with a specified confidence <b>(%1$s)</b> whether the %2$s of misstatement in the target population is lower than the specified materiality of <b>%3$s</b>.",
+
+      if(!options[["performanceMateriality"]] && !options[["reduceUncertainty"]]){
+        procedureText <- gettextf("Select one or more sampling objectives from the top left corner to begin the sampling workflow.\n\n%1$s <b>Test against a performance materiality</b>\n\nEnable this objective if you want to <i>test</i> whether the total misstatement in the population exceeds a certain limit (i.e., the performance materiality) based on a sample.\n\n%2$s <b>Obtain a minimum precision</b>\n\nEnable this objective if you want to obtain a minimum precision when <i>estimating</i> the total misstatement based on a sample.", "\u25CF", "\u25CF")
+      } else if(options[["performanceMateriality"]] && !options[["reduceUncertainty"]]){
+        procedureText <- gettextf("The objective of this audit sampling procedure is to determine with a specified confidence <b>(%1$s)</b> whether the %2$s of misstatement in the target population is lower than the specified performance materiality of <b>%3$s</b>.",
                                 stageOptions[["confidenceLabel"]],
                                 stageOptions[["absRel"]],
                                 stageOptions[["materialityLabel"]])
+      } else if(!options[["performanceMateriality"]] && options[["reduceUncertainty"]]){
+        procedureText <- gettextf("The objective of this audit sampling procedure is to determine the misstatement in the target population with a specified confidence <b>(%1$s)</b> and a minimum precision of <b>%2$s</b>.",
+                                  stageOptions[["confidenceLabel"]],
+                                  paste0(round(options[["maximumUncertaintyPercentage"]] * 100, 2), "%"))
+      } else if(options[["performanceMateriality"]] && options[["reduceUncertainty"]]){
+        procedureText <- gettextf("The objective of this audit sampling procedure is to determine with a specified confidence <b>(%1$s)</b> whether the %2$s of misstatement in the target population is lower than the specified performance materiality of <b>%3$s</b> with a minimum precision of <b>%4$s</b>.",
+                                stageOptions[["confidenceLabel"]],
+                                stageOptions[["absRel"]],
+                                stageOptions[["materialityLabel"]],
+                                paste0(round(options[["maximumUncertaintyPercentage"]] * 100, 2), "%"))
+      }                                           
 
       procedureContainer[["procedureParagraph"]] <- createJaspHtml(procedureText, "p")
       procedureContainer[["procedureParagraph"]]$position <- positionInContainer
@@ -1139,7 +1160,7 @@
 
       if(!is.null(stageState) && sum(stageState[["count"]]) > nrow(stageState)){
 
-        message <- gettextf("%1$s <b>Note:</b> The selected subset (%2$s) is smaller than the planned sample size (%3$s), as observations are selected multiple times due to their high value. These observations (%4$s) are counted multiple times in the evaluation.",
+        message <- gettextf("%1$s <b>Note:</b> The selected subset (%2$s) is smaller than the planned sample size (%3$s), as observations are selected multiple times due to their high value. These observations (%4$s) will be counted multiple times in the evaluation.",
                             message,
                             nrow(stageState),
                             prevState[["sampleSize"]],
@@ -1368,7 +1389,8 @@
                                      jaspResults, 
                                      position){
 
-  if(!is.null(jaspResults[["ARMcontainer"]])) 
+  if(!is.null(jaspResults[["ARMcontainer"]]) || 
+    (!options[["performanceMateriality"]] && !options[["reduceUncertainty"]])) 
     return()
 
   ARMcontainer <- createJaspContainer(title = gettext("<u>Audit Risk Model</u>"))
@@ -1383,7 +1405,9 @@
                                     "materialityValue", 
                                     "explanatoryText", 
                                     "valuta",
-                                    "otherValutaName"))
+                                    "otherValutaName",
+                                    "performanceMateriality",
+                                    "reduceUncertainty"))
   
   jaspResults[["ARMcontainer"]] <- ARMcontainer
 
@@ -1480,7 +1504,8 @@
 
   } else if(ready && !planningContainer$getError()){
 
-  dataset <- .auditReadDataset(options, jaspResults, stage = "procedure")
+    if(options[["workflow"]])
+      dataset <- .auditReadDataset(options, jaspResults, stage = "procedure")
 
   auditRisk <- 1 - options[["confidence"]]
 
@@ -1520,10 +1545,19 @@
 
       adjustedConfidence <- 1 - detectionRisk
 
+      minPrecision <- NULL
+      if(options[["reduceUncertainty"]])
+        minPrecision <- options[["maximumUncertaintyPercentage"]]
+
+      performanceMateriality <- NULL
+      if(options[["performanceMateriality"]])
+        performanceMateriality <- planningOptions[["materiality"]]
+
       result <- try({
-        jfa::planning(materiality = planningOptions[["materiality"]], 
+        jfa::planning(materiality = performanceMateriality, 
                       confidence = adjustedConfidence, 
                       expectedError = planningOptions[["expectedErrors"]], 
+                      minPrecision = minPrecision,
                       likelihood = planningOptions[["likelihood"]], 
                       N = planningOptions[["populationSize"]],
                       increase = options[["sampleSizeIncrease"]])
@@ -1612,9 +1646,8 @@
           minPrecision <- options[["maximumUncertaintyPercentage"]]
 
         performanceMateriality <- NULL
-        if(options[["performanceMateriality"]]){
+        if(options[["performanceMateriality"]])
           performanceMateriality <- planningOptions[["materiality"]]
-        }
 
         jfa::planning(materiality = performanceMateriality, 
                       confidence = planningOptions[["confidence"]], 
@@ -3059,7 +3092,6 @@
 
         # Step 6: And finally, the relative overstatement
         UB_relativeOverstatement <- UB_overstatement_total / planningOptions[["populationValue"]]
-        relativeInaccuracy <- absoluteInaccuracy / planningOptions[["populationValue"]]
 
         #obtainedInaccuracy <- options[["maximumUncertaintyPercentage"]] * (1 - m_seen_percentage)
 
@@ -3206,15 +3238,15 @@
     if(options[["variableType"]] == "variableTypeCorrect" && !options[["useSumStats"]])
       ready <- options[["auditResult"]] != "" && 
                 options[["recordNumberVariable"]] != "" && 
-                planningOptions[["materiality"]] != 0
+                (planningOptions[["materiality"]] != 0 || options[["maximumUncertaintyPercentage"]] != 0)
     if(options[["variableType"]] == "variableTypeAuditValues" && !options[["useSumStats"]])
       ready <- options[["auditResult"]] != "" && 
                 options[["recordNumberVariable"]] != "" &&
                 options[["monetaryVariable"]] != "" && 
-                planningOptions[["materiality"]] != 0
+                (planningOptions[["materiality"]] != 0 || options[["maximumUncertaintyPercentage"]] != 0)
 
     if(options[["variableType"]] == "variableTypeCorrect" && options[["useSumStats"]])
-      ready <- options[["nSumStats"]] > 0 && planningOptions[["materiality"]] != 0
+      ready <- options[["nSumStats"]] > 0 && (planningOptions[["materiality"]] != 0 || options[["maximumUncertaintyPercentage"]] != 0)
 
     if(ready){
 
@@ -4238,6 +4270,8 @@
     cols[which(plotData$x != plotData$y)] <- rgb(0.9, 0, 0, 1)
 
     p <- ggplot2::ggplot(data = plotData, mapping = ggplot2::aes(x = x, y = y)) +
+          ggplot2::geom_line(data = data.frame(x = c(0, max(xticks)), y = c(0, max(yticks))), 
+                              mapping = ggplot2::aes(x = x, y = y), size = 0.35, linetype = "dashed") +
           ggplot2::scale_x_continuous(name = gettextf("Book values (%1$s)", planningOptions[["valuta"]]),
                                       breaks = xticks,
                                       labels = xLabs) +
