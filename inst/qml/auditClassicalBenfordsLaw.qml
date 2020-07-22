@@ -16,15 +16,15 @@
 // When making changes to this file always mention @koenderks as a 
 // reviewer in the Pull Request
 
-import QtQuick 2.8
-import QtQuick.Layouts 1.3
-import JASP.Controls 1.0
-import JASP.Widgets 1.0
+import QtQuick 				2.8
+import QtQuick.Layouts 		1.3
+import JASP.Controls 		1.0
+import JASP.Widgets 		1.0
 
-Form {
-
-	usesJaspResults: true
-	columns: 1
+Form 
+{
+	usesJaspResults: 		true
+	columns: 				1
 
 	VariablesForm
 	{
