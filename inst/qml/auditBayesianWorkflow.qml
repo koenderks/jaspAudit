@@ -217,7 +217,7 @@ Form
 			{
 				id: 													recordNumberVariable
 				name: 												"recordNumberVariable"
-				title: 												qsTr("Record ID's")
+				title: 												qsTr("Transaction ID's")
 				singleVariable: 							true
 				allowedColumns: 							["nominal", "nominalText", "ordinal", "scale"]
 			}
@@ -232,9 +232,26 @@ Form
 			}
 		}
 
+		Section
+		{
+			title: 													qsTr("A.     Critical Transactions")
+			enabled:												(performanceMateriality.checked || reduceUncertainty.checked) && recordNumberVariable.count > 0
+			
+			TableView
+			{
+				id:													criticalTransactionTable
+				name:												"criticalTransactionTable"
+				Layout.fillWidth: 					true
+				modelType:									"FilteredDataEntryModel"
+				source:     								["recordNumberVariable", "monetaryVariable"]
+				colName:    								"Critical (1) or not (0)"
+				itemType:										"integer"
+			}
+		}
+
 		Section 
 		{
-			title: 													qsTr("A.     Prior Information")
+			title: 													qsTr("B.     Prior Information")
 			columns: 												3
 			enabled:												(performanceMateriality.checked || reduceUncertainty.checked) && recordNumberVariable.count > 0
 
@@ -389,7 +406,7 @@ Form
 
 		Section 
 		{
-			title: 													qsTr("B.     Efficiency Techniques")
+			title: 													qsTr("C.     Efficiency Techniques")
 			columns: 												1
 			enabled:												(performanceMateriality.checked || reduceUncertainty.checked) && recordNumberVariable.count > 0
 
@@ -419,7 +436,7 @@ Form
 
 		Section
 		{
-			text: 													qsTr("C.     Advanced Options")
+			text: 													qsTr("D.     Advanced Options")
 			columns: 												3
 			enabled:												(performanceMateriality.checked || reduceUncertainty.checked) && recordNumberVariable.count > 0
 
@@ -513,7 +530,7 @@ Form
 
 		Section
 		{
-			title: 													qsTr("D.     Tables and Plots")
+			title: 													qsTr("E.     Tables and Plots")
 			columns: 												2
 			enabled:												(performanceMateriality.checked || reduceUncertainty.checked) && recordNumberVariable.count > 0
 

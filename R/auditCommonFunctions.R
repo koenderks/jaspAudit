@@ -478,7 +478,7 @@
 
 .auditReadVariableFromOptions <- function(options, varType){
   if(varType == "recordNumber"){
-    # Read in the record ID's
+    # Read in the transaction ID's
     recordNumberVariable <- options[["recordNumberVariable"]]
     if(recordNumberVariable == "")
       recordNumberVariable <- NULL
@@ -936,9 +936,9 @@
       analysisContainer$setError(gettext("Your sample size must be larger than 1."))
       return(TRUE)
     } else if(options[["recordNumberVariable"]] != "" && !is.null(dataset) && nrow(dataset) != length(unique(dataset[, .v(options[["recordNumberVariable"]])]))){
-      # Error if the record ID's are not unique
+      # Error if the transaction ID's are not unique
       analysisContainer[["errorMessage"]] <- createJaspTable(gettext("Selection summary"))
-      analysisContainer$setError(gettext("Your must specify unique record ID's. The row numbers of the data set are sufficient."))
+      analysisContainer$setError(gettext("Your must specify unique transaction ID's. The row numbers of the data set are sufficient."))
       return(TRUE)
     } else {
       # No error in the selection options
@@ -948,9 +948,9 @@
   } else if(stage == "selection-workflow") {
 
     if(options[["recordNumberVariable"]] != "" && !is.null(dataset) && nrow(dataset) != length(unique(dataset[, .v(options[["recordNumberVariable"]])]))){
-      # Error if the record ID's are not unique
+      # Error if the transaction ID's are not unique
       analysisContainer[["errorMessage"]] <- createJaspTable(gettext("Selection summary"))
-      analysisContainer$setError(gettext("Your must specify unique record ID's. The row numbers of the data set are sufficient."))
+      analysisContainer$setError(gettext("Your must specify unique transaction ID's. The row numbers of the data set are sufficient."))
       return(TRUE)
     } else {
       # No error in the selection options
@@ -988,9 +988,9 @@
       analysisContainer$setError(gettext("The direct, difference, ratio, and regression confidence bound require that you specify the population size and the population value."))
       return(TRUE)
     } else if(!options[["useSumStats"]] && options[["recordNumberVariable"]] != "" && !is.null(dataset) && nrow(dataset) != length(unique(dataset[, .v(options[["recordNumberVariable"]])]))){
-      # Error if the record ID's are not unique
+      # Error if the transaction ID's are not unique
       analysisContainer[["errorMessage"]] <- createJaspTable(gettext("Selection summary"))
-      analysisContainer$setError(gettext("Your must specify unique record ID's. The row numbers of the data set are sufficient."))
+      analysisContainer$setError(gettext("Your must specify unique transaction ID's. The row numbers of the data set are sufficient."))
       return(TRUE)
     } else if(.auditCalculateDetectionRisk(options) >= 1){
       # Error if the detection risk of the analysis is higher than one

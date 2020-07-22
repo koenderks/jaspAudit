@@ -154,7 +154,7 @@ Form
 		{
 			id: 				recordNumberVariable
 			name: 				"recordNumberVariable"
-			title: 				qsTr("Record ID's")
+			title: 				qsTr("Transaction ID's")
 			singleVariable: 	true
 			allowedColumns: 	["nominal", "nominalText", "ordinal", "scale"]
 		}
