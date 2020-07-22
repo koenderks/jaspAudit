@@ -1576,7 +1576,7 @@
             bottomStratum <- subset(dataset, dataset[, .v(options[["monetaryVariable"]])] <= interval)
 
             m_seen <- sum(topStratum[, .v(options[["monetaryVariable"]])]) 
-            set.seed(rnorm(1))
+            set.seed(rnorm(1) + options[["sampleSizeIncrease"]] + planningOptions[["populationValue"]])
             intervalStartingPoint <- sample(1:(interval - 1), size = 1)
 
             intervalSelection <- intervalStartingPoint + 0:(n - 1) * interval
@@ -2036,34 +2036,45 @@
 
     detectionRisk <- auditRisk / inherentRisk / controlRisk
 
+    minPrecision <- NULL
+    if(options[["reduceUncertainty"]])
+      minPrecision <- options[["maximumUncertaintyPercentage"]]
+
+    performanceMateriality <- NULL
+    if(options[["performanceMateriality"]])
+      performanceMateriality <- planningOptions[["materiality"]]
+
     if(type == "frequentist"){
 
       adjustedConfidence <- 1 - detectionRisk
 
       startProgressbar(3)
 
-      n1 <- jfa::planning(materiality = planningOptions[["materiality"]], 
+      n1 <- jfa::planning(materiality = performanceMateriality, 
                           confidence = adjustedConfidence, 
                           expectedError = planningOptions[["expectedErrors"]], 
                           likelihood = "binomial", 
+                          minPrecision = minPrecision,
                           N = planningOptions[["populationSize"]],
                           increase = options[["sampleSizeIncrease"]])
 
       progressbarTick() 
 
-      n2 <- jfa::planning(materiality = planningOptions[["materiality"]], 
+      n2 <- jfa::planning(materiality = performanceMateriality, 
                           confidence = adjustedConfidence, 
                           expectedError = planningOptions[["expectedErrors"]], 
-                          likelihood = "poisson", 
+                          likelihood = "poisson",
+                          minPrecision = minPrecision, 
                           N = planningOptions[["populationSize"]],
                           increase = options[["sampleSizeIncrease"]])
 
       progressbarTick()      
 
-      n3 <- jfa::planning(materiality = planningOptions[["materiality"]], 
+      n3 <- jfa::planning(materiality = performanceMateriality, 
                           confidence = adjustedConfidence, 
                           expectedError = planningOptions[["expectedErrors"]], 
                           likelihood = "hypergeometric", 
+                          minPrecision = minPrecision,
                           N = planningOptions[["populationSize"]],
                           increase = options[["sampleSizeIncrease"]])
 
