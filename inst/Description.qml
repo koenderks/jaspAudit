@@ -22,7 +22,7 @@ Description
 	Analysis
 	{
 		title:					qsTr("Audit Workflow")
-		func:			"			auditClassicalWorkflow"
+		func:						"auditClassicalWorkflow"
 		requiresData:		true
 	}
 

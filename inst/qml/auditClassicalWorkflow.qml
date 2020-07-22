@@ -392,32 +392,30 @@ Form
 
 		Section 
 		{
-			title: 													qsTr("B.     Stratification")
+			title: 													qsTr("B.     Efficiency Techniques")
 			columns: 												1
 			enabled:												(performanceMateriality.checked || reduceUncertainty.checked) && recordNumberVariable.count > 0
 
-			RadioButtonGroup
+			GroupBox
 			{
 				id: 												stratification
-				title: 											qsTr("Stratification")
+				title: 											qsTr("Efficiency Techniques")
 				name: 											"stratification"
 				enabled:										!pasteVariables.checked & recordNumberVariable.count > 0 & monetaryVariable.count > 0
 
-				RadioButton
-				{
-					id: 											stratificationNone
-					text: 										qsTr("No stratification")
-					name: 										"stratificationNone"
-					checked: 									true
-					onCheckedChanged: 				if(checked) expectedRelative.click();
-				}
-
-				RadioButton
+				CheckBox
 				{
 					id: 											stratificationTopAndBottom
-					text: 										qsTr("Integral top stratum + Sampled bottom stratum")
+					text: 										qsTr("Separate known and unknown misstatement")
 					name: 										"stratificationTopAndBottom"
-					onCheckedChanged: 				if(checked) expectedAllPossible.click();
+					onCheckedChanged: 				if(checked) expectedAllPossible.click() 
+																			else expectedRelative.click()
+				}
+
+				Label
+				{
+					Layout.leftMargin: 					30 * preferencesModel.uiScale
+					text: 											qsTr("<i>Requires additional assumption: The sample taints are homogeneous</i>")
 				}
 			}
 		}

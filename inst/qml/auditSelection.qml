@@ -34,17 +34,11 @@ Form
 		visible: 														false
 	}
 
-	RadioButtonGroup
-	{
-		name:																"stratification"
-		visible:														false
-
-		RadioButton
-		{
-			name:															"stratificationNone"
-			checked:													true
-			visible:													false
-		}
+	CheckBox 
+	{ 
+		name: 													"stratificationTopAndBottom"
+		checked: 												false
+		visible: 												false
 	}
 
 	VariablesForm

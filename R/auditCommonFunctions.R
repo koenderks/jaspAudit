@@ -759,7 +759,7 @@
                                            "monetaryVariable",
                                            "valuta",
                                            "otherValutaName",
-                                           "stratification",
+                                           "stratificationTopAndBottom",
                                            "maximumUncertaintyPercentage",
                                            "reduceUncertainty",
                                            "performanceMateriality",
@@ -783,7 +783,7 @@
                                            "seed",
                                            "intervalStartingPoint",
                                            "sampleSize",
-                                           "stratification"))
+                                           "stratificationTopAndBottom"))
 
     jaspResults[["selectionContainer"]] <- analysisContainer
 
@@ -1069,7 +1069,7 @@
                                                     position = 1)
 
       if(!options[["performanceMateriality"]] && !options[["reduceUncertainty"]]){
-        procedureText <- gettextf("Select one or more sampling objectives from the top left corner to begin the sampling workflow.\n\n%1$s <b>Test against a performance materiality</b>\n\nEnable this objective if you want to <i>test</i> whether the total misstatement in the population exceeds a certain limit (i.e., the performance materiality) based on a sample.\n\n%2$s <b>Obtain a minimum precision</b>\n\nEnable this objective if you want to obtain a minimum precision when <i>estimating</i> the total misstatement based on a sample.", "\u25CF", "\u25CF")
+        procedureText <- gettextf("Select one or more sampling objectives from the top left corner to begin the planning stage.\n\n%1$s <b>Test against a performance materiality</b>\n\nEnable this objective if you want to <i>test</i> whether the total misstatement in the population exceeds a certain limit (i.e., the performance materiality) based on a sample.\n\n%2$s <b>Obtain a minimum precision</b>\n\nEnable this objective if you want to obtain a minimum precision when <i>estimating</i> the total misstatement based on a sample.", "\u25CF", "\u25CF")
       } else if(options[["performanceMateriality"]] && !options[["reduceUncertainty"]]){
         procedureText <- gettextf("The objective of this audit sampling procedure is to determine with a specified confidence <b>(%1$s)</b> whether the %2$s of misstatement in the target population is lower than the specified performance materiality of <b>%3$s</b>.",
                                 stageOptions[["confidenceLabel"]],
@@ -1567,7 +1567,7 @@
 
       if(options[["reduceUncertainty"]] && 
           !options[["performanceMateriality"]] && 
-          options[["stratification"]] == "stratificationTopAndBottom"){
+          options[["stratificationTopAndBottom"]]){
 
         for(n in seq(5, nrow(dataset), by = options[["sampleSizeIncrease"]])){
           
@@ -1652,6 +1652,7 @@
         jfa::planning(materiality = performanceMateriality, 
                       confidence = planningOptions[["confidence"]], 
                       expectedError = planningOptions[["expectedErrors"]], 
+                      likelihood = planningOptions[["likelihood"]],
                       N = planningOptions[["populationSize"]], 
                       prior = prior, 
                       minPrecision = minPrecision,
@@ -1735,7 +1736,9 @@
                                     "expectedBayesFactor",
                                     "expectedErrors",
                                     "reduceUncertainty",
-                                    "performanceMateriality"))
+                                    "performanceMateriality",
+                                    "stratificationTopAndBottom",
+                                    "sampleSizeIncrease"))
 
   if(options[["performanceMateriality"]])
     summaryTable$addColumnInfo(name = 'materiality',          
@@ -1972,7 +1975,7 @@
 
   summaryTable$addRows(row)
 
-  if(type == "bayesian" && options[["stratification"]] == "stratificationTopAndBottom"){
+  if(type == "bayesian" && options[["stratificationTopAndBottom"]]){
     message <- gettextf("The value %1$s is automatically used as a starting point for the fixed interval selection.", planningState[["startingPoint"]])
     summaryTable$addFootnote(message, symbol = gettextf("%1$s", "\u26A0"))
   }
@@ -2664,7 +2667,7 @@
 
   selectionInformationTable$addRows(row)
 
-  if(options[["stratification"]] != "stratificationNone"){
+  if(options[["stratificationTopAndBottom"]]){
 
     .updateTabNumber(jaspResults)
 
@@ -2770,7 +2773,7 @@
     dat <- as.data.frame(selectionState)
     colnames(dat) <- columnNames
 
-    if(options[["stratification"]] != "stratificationNone"){
+    if(options[["stratificationTopAndBottom"]]){
 
       sampleTable$addColumnInfo(name = "Stratum",     
                                 type = "string",
@@ -3067,7 +3070,7 @@
 
     } else if(type == "bayesian"){
 
-      if(options[["stratification"]] == "stratificationTopAndBottom"){
+      if(options[["stratificationTopAndBottom"]]){
 
         interval <- (planningOptions[["populationValue"]] / sum(selectionState[["count"]])) # Adjust
         
@@ -3983,7 +3986,7 @@
   evaluationContainer[["assumptionTable"]] <- assumptionTable
 
   if(options[["auditResult"]] == ""){
-        row <- list(type = gettext("Taints are interchangeable across strata"))
+        row <- list(type = gettext("The sample taints are homogeneous"))
     assumptionTable$addRows(row)
     return()
   }
@@ -3997,7 +4000,7 @@
     bf <- .audit_jzs_corbf(r = cor(bookValues, taints), n = nrow(sample)) # Bayesiaans
     bf <- 1 / bf
 
-    row <- list(type = gettext("Taints are interchangeable across strata"), 
+    row <- list(type = gettext("The sample taints are homogeneous"), 
                 correlation = round(cor, 3),
                 pvalue = pval,
                 bayesfactor = round(bf, 3))

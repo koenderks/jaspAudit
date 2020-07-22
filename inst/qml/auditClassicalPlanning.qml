@@ -34,17 +34,11 @@ Form
 		visible: 												false
 	}
 
-	RadioButtonGroup
-	{
-		name:														"stratification"
-		visible:												false
-
-		RadioButton
-		{
-			name:													"stratificationNone"
-			checked:											true
-			visible:											false
-		}
+	CheckBox 
+	{ 
+		name: 													"stratificationTopAndBottom"
+		checked: 												false
+		visible: 												false
 	}
 
 	GridLayout
@@ -437,6 +431,7 @@ Form
 	{
 		title: 													qsTr("C.     Plots")
 		columns:												2
+		enabled:												(performanceMateriality.checked || reduceUncertainty.checked)
 
 		GroupBox
 		{
