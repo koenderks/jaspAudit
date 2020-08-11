@@ -236,7 +236,40 @@ Form
 		{
 			title: 													qsTr("A.     Critical Transactions")
 			enabled:												(performanceMateriality.checked || reduceUncertainty.checked) && recordNumberVariable.count > 0
-			
+			columns: 												1
+
+			CheckBox
+			{
+				id: 													flagCriticalTransactions
+				name:													"flagCriticalTransactions"
+				text:													qsTr("Select critical transactions")
+
+				ComputedColumnField
+				{
+					id: 											criticalTransactions
+					name: 										"criticalTransactions"
+					text: 										qsTr("Column name critical transactions: ")
+					fieldWidth: 							120
+					value: 										"Critical"
+				}
+
+				CheckBox
+				{
+					id: 													flagNegativeValues
+					name:													"flagNegativeValues"
+					text:													qsTr("Negative book values")
+					enabled:											monetaryVariable.count > 0
+				}
+
+			}
+
+			Label
+			{
+				anchors.horizontalCenter: 	parent.horizontalCenter
+				text: 											qsTr("<b>Critical Transaction List</b>")
+				visible:										flagCriticalTransactions.checked
+			}
+
 			TableView
 			{
 				id:													criticalTransactionTable
@@ -244,8 +277,12 @@ Form
 				Layout.fillWidth: 					true
 				modelType:									"FilteredDataEntryModel"
 				source:     								["recordNumberVariable", "monetaryVariable"]
-				colName:    								"Critical (1) or not (0)"
 				itemType:										"integer"
+				colName: 										"Note"
+				visible:										flagCriticalTransactions.checked	
+				extraCol: 									criticalTransactions.value
+				filter:											criticalTransactions.value + " > 0"		
+				implicitHeight: 						200	
 			}
 		}
 
@@ -1095,6 +1132,7 @@ Form
 					name: 										"sampleFilter"
 					text: 										qsTr("Column name selection result: ")
 					fieldWidth: 							120
+					value: 										"SelectionResult"
 				}
 
 				ComputedColumnField
@@ -1103,6 +1141,7 @@ Form
 					name: 										"variableName"
 					text: 										qsTr("Column name audit result: ")
 					fieldWidth: 							120
+					value: 										"AuditResult"
 				}
 			}
 
@@ -1167,6 +1206,7 @@ Form
 				source:     								["recordNumberVariable", "monetaryVariable", "additionalVariables"]
 				colName:    								"Filter"
 				itemType:										"double"
+				decimals:										3
 			}
 		}
 

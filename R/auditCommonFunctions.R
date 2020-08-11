@@ -105,6 +105,8 @@
 
   if(workflow){
 
+    .fillCriticalTransactions(options, jaspResults)
+
     # Deduct the nessecary values from the input options
     planningOptions <- .auditInputOptions(options, dataset = NULL, jaspResults,
                                           stage = "planning", rawData = TRUE)
@@ -1979,6 +1981,32 @@
     message <- gettextf("The value %1$s is automatically used as a starting point for the fixed interval selection.", planningState[["startingPoint"]])
     summaryTable$addFootnote(message, symbol = gettextf("%1$s", "\u26A0"))
   }
+}
+
+.fillCriticalTransactions <- function(options, jaspResults){
+
+  if(options[["recordNumberVariable"]] == "")
+    return()
+
+    dataset <- .auditReadDataset(options, jaspResults, stage = "procedure")
+    
+    if(options[["flagCriticalTransactions"]]){
+
+      criticalTransactions <- rep(0, nrow(dataset))
+
+      if(options[["flagNegativeValues"]])
+        criticalTransactions[which(dataset[, .v(options[["monetaryVariable"]])] < 0)] <- 1
+
+    } else {
+      
+      criticalTransactions          <- rep(NA, nrow(dataset))
+
+    }
+    
+    if(is.null(jaspResults[["criticalTransactions"]]))  
+      jaspResults[["criticalTransactions"]] <- createJaspColumn(columnName = options[["criticalTransactions"]], dependencies = "criticalTransactions")
+
+    jaspResults[["criticalTransactions"]]$setScale(criticalTransactions)
 }
 
 .sampleSizeComparisonPlot <- function(options, 
