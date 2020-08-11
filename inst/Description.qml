@@ -14,6 +14,8 @@ Description
 	icon:							"audit-module.svg"
 	requiresData:			false
 
+	Package { name: "jfa"; version: "0.2.0" }
+
 	GroupTitle
 	{
 		title:    			qsTr("Workflow")
