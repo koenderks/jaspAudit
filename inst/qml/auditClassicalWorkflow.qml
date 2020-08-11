@@ -1267,7 +1267,7 @@ Form
 				{
 					text: 										qsTr("Most likely error (MLE)")
 					name: 										"mostLikelyError"
-					checked: 									false
+					checked: 									true
 				}
 
 				CheckBox

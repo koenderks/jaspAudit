@@ -1248,7 +1248,7 @@ Form
 		Section
 		{
 			title: 												qsTr("A.     Advanced Options")
-			columns: 											2
+			columns: 											3
 
 			RadioButtonGroup
 			{
@@ -1312,6 +1312,28 @@ Form
 					text: 										qsTr("Credible interval")
 					name: 										"displayCredibleInterval"
 				}
+				
+			}
+
+			RadioButtonGroup
+			{
+				title: 											qsTr("Display")
+				name: 											"display"
+
+				RadioButton
+				{
+					text: 										qsTr("Percentages")
+					name: 										"displayPercentages"
+					checked: 									true
+				}
+
+				RadioButton
+				{
+					text: 										qsTr("Values")
+					name: 										"displayValues"
+					enabled:									monetaryVariable.count > 0
+				}
+				
 			}
 		}
 
@@ -1330,6 +1352,7 @@ Form
 					{
 						text: 									qsTr("Most likely error (MLE)")
 						name: 									"mostLikelyError"
+						checked: 								true
 					}
 
 					CheckBox

@@ -1140,7 +1140,7 @@
       if(!is.null(stageState) && !is.null(stageState[["musFailed"]])){
         # MUS has failed for some reason, fall back to record sampling
 
-        message <- gettextf("From the population of <b>%1$s</b> observations, <b>%2$s</b> observations were selected using a <b>%3$s record sampling</b> method. <br><b>Warning:</b> A monetary unit sampling method was tried but failed.",
+        message <- gettextf("From the population of <b>%1$s</b> observations, <b>%2$s</b> sampling units were selected using a <b>%3$s record sampling</b> method. <br><b>Warning:</b> A monetary unit sampling method was tried but failed.",
                             stageOptions[["populationSize"]],
                             prevState[["sampleSize"]],
                             samplingLabel)
@@ -1151,7 +1151,7 @@
                                       "recordSampling" = gettextf("%1$s record sampling", samplingLabel), 
                                       "musSampling" = gettextf("%1$s monetary unit sampling", samplingLabel))
 
-        message <- gettextf("From the population of <b>%1$s</b> observations, <b>%2$s</b> observations were selected using a <b>%3$s</b> method.",
+        message <- gettextf("From the population of <b>%1$s</b> observations, <b>%2$s</b> sampling units were selected using a <b>%3$s</b> method.",
                             stageOptions[["populationSize"]],
                             prevState[["sampleSize"]],
                             samplingLabel)
@@ -2667,7 +2667,7 @@
 
   selectionInformationTable$addRows(row)
 
-  if(options[["stratificationTopAndBottom"]]){
+  if(options[["selectionMethod"]] == "systematicSampling"){
 
     .updateTabNumber(jaspResults)
 
@@ -2693,9 +2693,12 @@
                               type = "integer")  
     stratumTable$addColumnInfo(name = "value", 
                               title = gettext("Value"), 
-                              type = "string")     
+                              type = "string")    
+    stratumTable$addColumnInfo(name = "unitSize", 
+                          title = gettext("Selected units"), 
+                          type = "integer")                            
     stratumTable$addColumnInfo(name = "samplesize", 
-                              title = gettext("Sample size"), 
+                              title = gettext("Selected transactions"), 
                               type = "integer") 
     stratumTable$addColumnInfo(name = "samplevalue", 
                               title = gettext("Sample value"), 
@@ -2718,7 +2721,8 @@
 
     row <- data.frame(stratum = c("Top stratum", "Bottom stratum", "Population"), 
                 size = c(nrow(topStratum), nrow(dataset) - nrow(topStratum), nrow(dataset)), 
-                samplesize = c(nrow(topStratum), sampleSize - nrow(topStratum), sampleSize), 
+                unitSize = c(sampleSize - nrow(bottomStratumSample), nrow(bottomStratumSample), sampleSize),
+                samplesize = c(nrow(topStratum), nrow(bottomStratumSample), nrow(topStratum) + nrow(bottomStratumSample)), 
                 value = c(paste(planningOptions[["valuta"]], topStratumValue), paste(planningOptions[["valuta"]], bottomStratumValueSample), paste(planningOptions[["valuta"]], round(planningOptions[["populationValue"]], 2))),
                 samplevalue = c(paste(planningOptions[["valuta"]], topStratumValue), paste(planningOptions[["valuta"]], bottomStratumValueSample), paste(planningOptions[["valuta"]], bottomStratumValueSample + topStratumValue)),
                 stratumpercentage = c("100%", paste0(round(bottomStratumValueSample / bottomStratumValuePopulation * 100, 2), "%"), paste0(round((bottomStratumValueSample + topStratumValue) / planningOptions[["populationValue"]] * 100, 2), "%")))
@@ -3023,7 +3027,8 @@
                                   planningOptions,
                                   sample, 
                                   evaluationContainer,
-                                  type, selectionState){
+                                  type, 
+                                  selectionState){
 
   if(options[["auditResult"]] == "")
     return()
@@ -3072,10 +3077,17 @@
 
       if(options[["stratificationTopAndBottom"]]){
 
-        interval <- (planningOptions[["populationValue"]] / sum(selectionState[["count"]])) # Adjust
-        
-        topStratum <- sample[which(sample[, .v(options[["monetaryVariable"]])] > interval), ]
+        k <- length(which(sample[, .v(options[["monetaryVariable"]])] != sample[, .v(options[["auditResult"]])]))
+        diff <- (sample[, .v(options[["monetaryVariable"]])] - sample[, .v(options[["auditResult"]])])
+        taintings <- diff / sample[, .v(options[["monetaryVariable"]])]
+        totalTaint <- sum(taintings * selectionState[["count"]])
+        mle <- totalTaint / sum(selectionState[["count"]])
 
+        if(mle > diff)
+          mle <- diff
+
+        interval <- (planningOptions[["populationValue"]] / sum(selectionState[["count"]])) # Adjust      
+        topStratum <- sample[which(sample[, .v(options[["monetaryVariable"]])] > interval), ]
         bottomStratum <- sample[which(sample[, .v(options[["monetaryVariable"]])] <= interval), ]
         M_unseen <- planningOptions[["populationValue"]] - sum(sample[, .v(options[["monetaryVariable"]])])
         m_seen_percentage <- (planningOptions[["populationValue"]] - M_unseen) / planningOptions[["populationValue"]]
@@ -3107,18 +3119,22 @@
         # Step 6: And finally, the relative overstatement
         UB_relativeOverstatement <- UB_overstatement_total / planningOptions[["populationValue"]]
 
+        mle1 <- MLE_overstatement_total / planningOptions[["populationValue"]]
+
+        precision <- UB_relativeOverstatement - mle
+
         #obtainedInaccuracy <- options[["maximumUncertaintyPercentage"]] * (1 - m_seen_percentage)
 
         result <- list(confBound = UB_relativeOverstatement,
                        precision = relativeInaccuracy,
-                       k = length(which(taints != 0)),
-                       t = sum(taints),
+                       k = k,
+                       t = totalTaint,
                        n = sum(selectionState[["count"]]),
                        conclusion = "Approve population",
                        kPrior = 0,
                        nPrior = 0,
                        method = "stratification",
-                       mle = MLE_overstatement_total / planningOptions[["populationValue"]],
+                       mle = mle,
                        materiality = planningOptions[["materiality"]])
 
         evaluationContainer[["evaluationState"]] <- createJaspState(result)
@@ -3301,7 +3317,7 @@
                                   " (",
                                   nrow(selectionState),
                                   " + ",
-                                  length(which(selectionState[["count"]] != 1)),
+                                  sum(selectionState[["count"]][which(selectionState[["count"]] != 1)] - 1),
                                   ")")
     } else {
       sampleSizeMessage <- planningState[["sampleSize"]]
@@ -3313,7 +3329,7 @@
       additionalMessage <- gettext("probability that the maximum misstatement is lower than")
     }
 
-    message <- gettextf("The selection consisted of <b>%1$s</b> observations, of which <b>%2$s</b> were found to contain an error. The knowledge from these data, combined with the risk assessments results in an <b>%3$s</b> upper confidence bound of <b>%4$s</b>. The cumulative knowledge states that there is a <b>%5$s</b> %6$s <b>%7$s</b>.",
+    message <- gettextf("The selection consisted of <b>%1$s</b> sampling units, of which <b>%2$s</b> were found to contain an error. The knowledge from these data, combined with the risk assessments results in an <b>%3$s</b> upper confidence bound of <b>%4$s</b>. The cumulative knowledge states that there is a <b>%5$s</b> %6$s <b>%7$s</b>.",
                         sampleSizeMessage,
                         errorLabel,
                         planningOptions[["confidenceLabel"]],
@@ -3639,7 +3655,8 @@
                                         "irCustom",
                                         "CR",
                                         "crCustom",
-                                        "maximumUncertaintyStatistic"))
+                                        "maximumUncertaintyStatistic",
+                                        "display"))
 
   evaluationTable$addColumnInfo(name = 'materiality',   
                                 title = gettext("Materiality"),
@@ -3656,7 +3673,7 @@
 
   if(options[["mostLikelyError"]])
     evaluationTable$addColumnInfo(name = 'mle',         
-                                  title = gettext("MLE"), 
+                                  title = gettext("Most likely error"), 
                                   type = 'string')
 
   if(type == "frequentist"){
@@ -3696,11 +3713,6 @@
                               title = boundTitle, 
                               type = 'string')
 
-    if(options[["monetaryVariable"]] != "")
-      evaluationTable$addColumnInfo(name = 'projm',         
-                                title = gettext("Maximum Misstatement"),           
-                                type = 'string')
-
   } else if(type == "bayesian"){
 
     if(options[["areaUnderPosterior"]] == "displayCredibleBound"){
@@ -3709,11 +3721,6 @@
       evaluationTable$addColumnInfo(name = 'bound',         
                               title = boundTitle, 
                               type = 'string')
-
-      if(options[["monetaryVariable"]] != "")
-        evaluationTable$addColumnInfo(name = 'projm',         
-                                  title = gettext("Maximum Misstatement"),           
-                                  type = 'string')
 
     } else if (options[["areaUnderPosterior"]] == "displayCredibleInterval"){
 
@@ -3725,20 +3732,7 @@
        evaluationTable$addColumnInfo(name = 'upperBound',  
                               title = gettext("Upper"),       
                               overtitle = boundTitle, 
-                              type = 'string')  
-
-      if(options[["monetaryVariable"]] != ""){
-
-        evaluationTable$addColumnInfo(name = 'lowerProjm',  
-                          title = gettext("Lower"),       
-                          overtitle = gettext("Maximum Misstatement"),           
-                          type = 'string') 
-        evaluationTable$addColumnInfo(name = 'upperProjm',  
-                                  title = gettext("Upper"),       
-                                  overtitle = gettext("Maximum Misstatement"),           
-                                  type = 'string')                           
-
-      }                                                       
+                              type = 'string')                                                         
     }
   }
 
@@ -3804,9 +3798,13 @@
     credibleInterval <- .auditCalculateCredibleInterval(evaluationState)
     lowerBound <- credibleInterval[["lowerBound"]]
     upperBound <- credibleInterval[["upperBound"]]
-
-    LowerBoundLabel <- paste0(round(lowerBound * 100, 3), "%")
-    UpperBoundLabel <- paste0(round(upperBound * 100, 3), "%")
+    
+    LowerBoundLabel <- base::switch(options[["display"]],
+                                    "displayPercentages" = paste0(round(lowerBound * 100, 3), "%"),
+                                    "displayValues" = paste(planningOptions[["valuta"]], round(lowerBound * planningOptions[["populationValue"]], 3)))
+    UpperBoundLabel <- base::switch(options[["display"]],
+                                    "displayPercentages" = paste0(round(upperBound * 100, 3), "%"),
+                                    "displayValues" = paste(planningOptions[["valuta"]], round(upperBound * planningOptions[["populationValue"]], 3)))
 
     row <- data.frame(materiality = planningOptions[["materialityLabel"]],
                       sampleSize = evaluationState[["n"]],
@@ -3817,7 +3815,9 @@
 
   } else {
 
-    boundLabel <- paste0(round(evaluationState[["confBound"]] * 100, 3), "%")
+    boundLabel <- base::switch(options[["display"]],
+                               "displayPercentages" = paste0(round(evaluationState[["confBound"]] * 100, 3), "%"),
+                               "displayValues" = paste(planningOptions[["valuta"]], round(evaluationState[["confBound"]] * planningOptions[["populationValue"]], 3)))
 
     row <- data.frame(materiality = planningOptions[["materialityLabel"]],
                       sampleSize = evaluationState[["n"]],
@@ -3829,97 +3829,12 @@
 
   if(options[["mostLikelyError"]]){
 
-    if(options[["variableType"]] == "variableTypeAuditValues" && 
-        options[["estimator"]] %in% c("directBound", "differenceBound", "ratioBound", "regressionBound")){
+    mle <- evaluationState[["mle"]]
+    mleLabel <- base::switch(options[["display"]],
+                             "displayPercentages" = paste0(round(mle * 100, 3), "%"),
+                             "displayValues" = paste(planningOptions[["valuta"]], round(mle * planningOptions[["populationValue"]], 3)))
 
-      mle <- (planningOptions[["populationValue"]] - evaluationState[["pointEstimate"]]) / 
-              planningOptions[["populationValue"]]
-    
-    } else {
-
-      if(type == "frequentist"){
-
-        mle <- evaluationState[["t"]] / evaluationState[["n"]]
-
-      } else if(type == "bayesian"){
-
-        if(evaluationState[["t"]] == 0 && evaluationState[["kPrior"]] == 0){
-
-          mle <- 0
-
-        } else {
-
-          if(evaluationState[["method"]] == "binomial")
-            mle <- (1 + evaluationState[["kPrior"]] + evaluationState[["t"]] - 1) /
-                    (1 + evaluationState[["kPrior"]] + evaluationState[["t"]] +
-                      1 + evaluationState[["nPrior"]] + evaluationState[["n"]] -
-                      evaluationState[["t"]] - 2)
-
-          if(evaluationState[["method"]] == "poisson")
-            mle <- (1 + evaluationState[["kPrior"]] + evaluationState[["t"]] - 1) / 
-                    (evaluationState[["nPrior"]] + evaluationState[["n"]])
-
-          if(evaluationState[["method"]] == "hypergeometric")
-            mle <- (1 + evaluationState[["kPrior"]] + evaluationState[["t"]] - 1) / 
-                    (1 + evaluationState[["kPrior"]] + evaluationState[["t"]] +
-                    1 + evaluationState[["nPrior"]] + evaluationState[["n"]] -
-                    evaluationState[["t"]] - 2)
-
-          if(evaluationState[["method"]] == "stratification")
-            mle <- evaluationState[["mle"]]
-
-          if(evaluationState[["method"]] == "coxsnell")
-            mle <- evaluationState[["multiplicationFactor"]] * 
-                    ( (evaluationState[["df1"]] - 2)  / 
-                       evaluationState[["df1"]] 
-                    ) * 
-                    ( evaluationState[["df2"]] / 
-                      (evaluationState[["df2"]] + 2) 
-                    )
-
-        }
-      }
-    }
-
-    if(options[["materiality"]] == "materialityRelative"){
-
-      mleLabel <- paste0(round(mle * 100, 3), "%")
-
-    } else if(options[["materiality"]] == "materialityAbsolute"){
-
-      mleLabel <- paste(planningOptions[["valuta"]], 
-                          round(mle * planningOptions[["populationValue"]], 3))
-
-    }
-
-    row <- cbind(row, 
-                 mle = mleLabel)
-  }
-
-  if(options[["monetaryVariable"]] != ""){
-
-    if(type == "bayesian" && options[["areaUnderPosterior"]] == "displayCredibleInterval"){
-
-      lowerProjm <- round(lowerBound * 
-                          planningOptions[["populationValue"]], 2)
-      upperProjm <- round(upperBound * 
-                          planningOptions[["populationValue"]], 2) 
-      lowerProjmLabl <- paste(planningOptions[["valuta"]], lowerProjm)
-      upperProjmLabel <- paste(planningOptions[["valuta"]], upperProjm)
-
-      row <- cbind(row, 
-                  lowerProjm = lowerProjmLabl,
-                  upperProjm = upperProjmLabel) 
-
-    } else {
-
-      projm <- round(evaluationState[["confBound"]] * 
-                    planningOptions[["populationValue"]], 2)
-      projmLabel <- paste(planningOptions[["valuta"]], projm)
-      row <- cbind(row, 
-                  projm = projmLabel)
-
-    }
+    row <- cbind(row, mle = mleLabel)
   }
 
   if(type == "bayesian" && 
@@ -3940,14 +3855,14 @@
 
   }
 
-  if(options[["maximumUncertaintyStatistic"]])
-    row <- cbind(row, maximumUncertainty = paste0(round(evaluationState[["precision"]] * 100, 3), "%"))
+  if(options[["maximumUncertaintyStatistic"]]){
+    precisionLabel <- base::switch(options[["display"]],
+                                   "displayPercentages" = paste0(round(evaluationState[["precision"]] * 100, 3), "%"),
+                                   "displayValues" = paste(planningOptions[["valuta"]], round(evaluationState[["precision"]] * planningOptions[["populationValue"]], 3)))
+    row <- cbind(row, maximumUncertainty = precisionLabel)
+  }
 
-  
   evaluationTable$addRows(row)
-
-  if(options[["monetaryVariable"]] != "" && (planningOptions[["populationValue"]] == 0 || planningOptions[["populationValue"]] == 0.01))
-    evaluationTable$addFootnote(message = gettext("You must specify the population value to see the maximum misstatement."), symbol = "  \u26A0", colNames = 'projm')
 }
 
 .auditEvaluationAssumptionChecks <- function(options,
@@ -3978,10 +3893,10 @@
                                 title = gettext("<i>p</i>"), 
                                 type = 'pvalue')
    assumptionTable$addColumnInfo(name = 'bayesfactor', 
-                                title = gettextf("BF%1$s", "\u2080\u2081"), 
+                                title = gettextf("BF%1$s", "\u2081\u2080"), 
                                 type = 'string')  
 
-  assumptionTable$addFootnote(gettextf("<i>p</i> < .05 or %1$s > 19 implies that an assumption might be violated.", "BF\u2080\u2081"), symbol = gettext("<i>Note.</i>"))
+  assumptionTable$addFootnote(gettextf("<i>p</i> < .05 or %1$s > 19 implies that an assumption might be violated.", "BF\u2081\u2080"), symbol = gettext("<i>Note.</i>"))
 
   evaluationContainer[["assumptionTable"]] <- assumptionTable
 
