@@ -241,29 +241,55 @@ Form
 			enabled:												(performanceMateriality.checked || reduceUncertainty.checked) && recordNumberVariable.count > 0
 			columns: 												1
 
-			CheckBox
+			GridLayout
 			{
-				id: 													flagCriticalTransactions
-				name:													"flagCriticalTransactions"
-				text:													qsTr("Select critical transactions")
-
-				ComputedColumnField
-				{
-					id: 											criticalTransactions
-					name: 										"criticalTransactions"
-					text: 										qsTr("Column name critical transactions: ")
-					fieldWidth: 							120
-					value: 										"Critical"
-				}
+				columns: 											2
 
 				CheckBox
 				{
-					id: 													flagNegativeValues
-					name:													"flagNegativeValues"
-					text:													qsTr("Negative book values")
-					enabled:											monetaryVariable.count > 0
+					id: 													flagCriticalTransactions
+					name:													"flagCriticalTransactions"
+					text:													qsTr("Select critical transactions")
+
+					ComputedColumnField
+					{
+						id: 											criticalTransactions
+						name: 										"criticalTransactions"
+						text: 										qsTr("Column name critical transactions: ")
+						fieldWidth: 							120
+						value: 										"Critical"
+					}
+
+					CheckBox
+					{
+						id: 													flagNegativeValues
+						name:													"flagNegativeValues"
+						text:													qsTr("Negative book values")
+						enabled:											monetaryVariable.count > 0
+					}
+
 				}
 
+				RadioButtonGroup
+				{
+					id: 													handleCriticalTransactions
+					title: 												qsTr("How to handle critical transactions")
+					name: 												"handleCriticalTransactions"
+					enabled:											flagCriticalTransactions.checked
+
+					RadioButton 
+					{ 
+						text: 											qsTr("Inspect")
+						name: 											"inspect"
+						checked: 										true	
+					}
+
+					RadioButton 
+					{ 
+						text: 											qsTr("Remove")
+						name: 											"remove"
+					}
+				}
 			}
 
 			Label
