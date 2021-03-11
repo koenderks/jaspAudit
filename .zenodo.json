@@ -1,0 +1,43 @@
+{
+    "description": "JASP for Audit source code for JOSS submission (version 0.16)", 
+    "license": "other-open", 
+    "title": "JASP for Audit: Bayesian Tools for the Auditing Practice", 
+    "version": "0.16", 
+    "upload_type": "software", 
+    "publication_date": "2021-11-13", 
+    "creators": [
+        {
+            "affiliation": "Nyenrode Business University", 
+            "name": "Koen Derks"
+        },
+        {
+            "affiliation": "Nyenrode Business University & PwC Advisory", 
+            "name": "Jacques de Swart"
+        }, 
+        {
+            "affiliation": "University of Amsterdam", 
+            "name": "Eric-Jan Wagenmakers"
+        }, 
+        {
+            "affiliation": "PwC Advisory", 
+            "name": "Jan Wille"
+        }, 
+        {
+            "affiliation": "Nyenrode Business University & PwC Advisory", 
+            "name": "Ruud Wetzels"
+        }
+    ], 
+    "access_right": "open", 
+    "related_identifiers": [
+        {
+            "scheme": "url", 
+            "identifier": "https://github.com/koenderks/jaspAudit/tree/jaspAudit-0.16", 
+            "relation": "isSupplementTo"
+        }, 
+        {
+            "scheme": "doi", 
+            "identifier": "10.5281/zenodo.5690282", 
+            "relation": "isVersionOf"
+        }
+    ]
+}
