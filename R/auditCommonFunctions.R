@@ -702,9 +702,10 @@
     container$dependOn(options = c(
       "ir", "irCustom", "cr", "crCustom", "car", "carCustom", "conf_level", "n_units", "materiality_type",
       "materiality_rel_val", "materiality_abs_val", "expected_type", "expected_rel_val", "expected_pop_rate",
-      "expected_abs_val", "likelihood", "id", "values", "separateMisstatement",
+      "expected_abs_val", "likelihood", "id", "values", "separateMisstatement", "prior_distribution",
       "min_precision_rel_val", "min_precision_test", "materiality_test", "by", "max", "prior_method",
-      "n_prior", "x_prior", "alpha", "beta", "display"
+      "n_prior", "x_prior", "alpha", "beta", "display",
+      "betabinomial_alpha", "betabinomial_beta", "uniform_min", "uniform_max", "beta_alpha", "beta_beta", "gamma_shape", "gamma_rate", "normal_mean", "normal_sd"
     ))
 
     jaspResults[["planningContainer"]] <- container
@@ -1555,12 +1556,20 @@
         )
       })
     } else {
+      parameters <- .jfaGetPriorParametersFromOptions(options)
       prior <- jfa::auditPrior(
-        method = options[["prior_method"]], conf.level = options[["conf_level"]],
-        materiality = materiality, expected = options[["expected_pop_rate"]],
-        likelihood = options[["likelihood"]], N.units = N.units, ir = risks[["ir"]],
-        cr = (risks[["cr"]] * risks[["car"]]), n = options[["n_prior"]], x = options[["x_prior"]],
-        alpha = options[["alpha"]], beta = options[["beta"]]
+        method = options[["prior_method"]],
+        conf.level = options[["conf_level"]],
+        materiality = materiality,
+        expected = options[["expected_pop_rate"]],
+        likelihood = if (options[["workflow"]]) options[["likelihood"]] else options[["prior_distribution"]],
+        N.units = N.units,
+        ir = risks[["ir"]],
+        cr = (risks[["cr"]] * risks[["car"]]),
+        n = options[["n_prior"]],
+        x = options[["x_prior"]],
+        alpha = parameters[["alpha"]],
+        beta = parameters[["beta"]]
       )
 
       result <- try({
@@ -2188,7 +2197,7 @@
     data = as.data.frame(dataset), size = prevState[["n"]], units = units, method = options[["sampling_method"]],
     values = if (options[["values"]] != "") options[["values"]] else NULL,
     order = if (options[["rank"]] != "") options[["rank"]] else NULL,
-    start = start, replace = FALSE, randomize = options[["randomize"]]
+    start = start, replace = TRUE, randomize = options[["randomize"]]
   )
   return(jfaresult)
 }
