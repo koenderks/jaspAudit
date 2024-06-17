@@ -249,6 +249,25 @@
 ################## Common functions not tied to a specific stage ###############
 ################################################################################
 
+.jfaGetPriorParametersFromOptions <- function(options) {
+  parameters <- list()
+  parameters[["alpha"]] <- switch(options[["prior_distribution"]],
+    "hypergeometric" = options[["betabinomial_alpha"]],
+    "uniform" = options[["uniform_min"]],
+    "binomial" = options[["beta_alpha"]],
+    "poisson" = options[["gamma_shape"]],
+    "normal" = options[["normal_mean"]]
+  )
+  parameters[["beta"]] <- switch(options[["prior_distribution"]],
+    "hypergeometric" = options[["betabinomial_beta"]],
+    "uniform" = options[["uniform_max"]],
+    "binomial" = options[["beta_beta"]],
+    "poisson" = options[["gamma_rate"]],
+    "normal" = options[["normal_sd"]]
+  )
+  return(parameters)
+}
+
 .jfaTablePriorPosterior <- function(options, parentOptions, parentState, parentContainer, jaspResults,
                                     ready = NULL, positionInContainer, stage) {
   if ((stage == "planning" && !options[["tablePrior"]]) || (stage == "evaluation" && !options[["tablePriorPosterior"]])) {

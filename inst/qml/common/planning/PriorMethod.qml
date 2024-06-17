@@ -26,6 +26,7 @@ import "./" as Planning
 Group
 {
 	readonly	property bool	use_expected:		prior_method.value == "impartial" || prior_method.value == "arm"
+	readonly	property bool	use_parameters:		prior_method.value == "param"
 				property bool	use_materiality:	false
 				property bool	enable:				true
 
@@ -41,15 +42,15 @@ Group
 		startValue:			"default"
 		label: 				qsTr("Method")
 		values: use_materiality ? [
-			{ label: qsTr("Default"),			value: "default" },
-			{ label: qsTr("Parameters"), 		value: "param" },
-			{ label: qsTr("Earlier sample"), 	value: "sample" },
-			{ label: qsTr("Impartial"), 		value: "impartial"},
-			{ label: qsTr("Risk assessments"), 	value: "arm"}
+			{ label: qsTr("Default"),		value: "default" },
+			{ label: qsTr("Parameters"), 	value: "param" },
+			{ label: qsTr("Prior sample"), 	value: "sample" },
+			{ label: qsTr("Impartial"), 	value: "impartial"},
+			{ label: qsTr("Risks"), 		value: "arm"}
 		] : [
-			{ label: qsTr("Default"),			value: "default" },
-			{ label: qsTr("Parameters"), 		value: "param" },
-			{ label: qsTr("Earlier sample"), 	value: "sample" }
+			{ label: qsTr("Default"),		value: "default" },
+			{ label: qsTr("Parameters"), 	value: "param" },
+			{ label: qsTr("Prior sample"), 	value: "sample" }
 		]
 		info:				qsTr("Indicate the type of available audit information that should be incorporated into the prior distribution.")
 	}
@@ -82,6 +83,7 @@ Group
 		min:				1
 		defaultValue: 		1
 		visible:			prior_method.value == "sample"
+		Layout.leftMargin:	10 * preferencesModel.uiScale
 		info:				qsTr("The number of sampling units audited through an earlier sample.")
 	}
 
@@ -94,8 +96,9 @@ Group
 		defaultValue: 		0
 		decimals:			3
 		visible:			prior_method.value == "sample"
+		Layout.leftMargin:	10 * preferencesModel.uiScale
 		info:				qsTr("The number of misstatements found through an earlier sample.")
 	}
 
-	Planning.AuditRiskModel { hide: prior_method.value != "arm" }
+	Planning.AuditRiskModel { hide: prior_method.value != "arm"; show_title: false}
 }
